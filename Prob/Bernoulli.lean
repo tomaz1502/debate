@@ -12,6 +12,8 @@ open Set
 open scoped Real
 noncomputable section
 
+variable {V : Type} [AddCommGroup V] [Module ℝ V]
+
 /-- Bernoulli random variable.
     We clamp probabilities to [0,1] so that any probability can be passed in. -/
 def bernoulli (p' : ℝ) : Prob Bool := by
@@ -57,8 +59,8 @@ lemma bit_prob (x : Bool) : bit.prob x = 1/2 := by
   · exact bernoulli_prob_true half_mem_Icc
 
 /-- The expectation of a Bernoulli distribution in terms of true and false values -/
-lemma exp_bernoulli (p : ℝ) (m : p ∈ Icc 0 1) (f : Bool → ℝ) :
-    (bernoulli p).exp f = (1-p) * f false + p * f true := by
+lemma exp_bernoulli (p : ℝ) (m : p ∈ Icc 0 1) (f : Bool → V) :
+    (bernoulli p).exp f = (1-p) • f false + p • f true := by
   simp only [exp_bool, bernoulli_prob_false m, bernoulli_prob_true m]
 
 /-- All Bool computations are Bernoulli -/

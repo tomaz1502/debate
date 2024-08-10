@@ -20,6 +20,7 @@ open scoped Real
 noncomputable section
 
 variable {α β γ : Type}
+variable {V : Type} [AddCommGroup V] [Module ℝ V]
 
 /-- Prob α is a finitely supported probability distribution over results α -/
 structure Prob (α : Type) where
@@ -28,29 +29,29 @@ structure Prob (α : Type) where
   /-- prob is nonnegative -/
   prob_nonneg : ∀ {x}, 0 ≤ prob x
   /-- The total probability is 1 -/
-  total : prob.sum (λ _ p ↦ p) = 1
+  total : prob.sum (fun _ p ↦ p) = 1
 
 /-- The support for f -/
 def Prob.supp (f : Prob α) : Finset α := f.prob.support
 
 /-- Integral w.r.t. a distribution -/
-def Prob.exp (f : Prob α) (g : α → ℝ) : ℝ :=
-  f.prob.sum (λ x p ↦ p * g x)
+def Prob.exp (f : Prob α) (g : α → V) : V :=
+  f.prob.sum (fun x p ↦ p • g x)
 
 /-- Expectation of a real-valued distribution -/
-def Prob.mean (f : Prob ℝ) : ℝ := f.exp id
+def Prob.mean (f : Prob V) : V := f.exp id
 
 /-- The probability that a prop holds -/
 def Prob.pr (f : Prob α) (p : α → Prop) :=
-  f.exp (λ x ↦ if p x then 1 else 0)
+  f.exp (fun x ↦ if p x then (1 : ℝ) else 0)
 
 /-- Conditional probabilities: f.cond p q = Pr_f(p | q) = f.pr (p ∧ q) / f.pr q -/
 def Prob.cond (f : Prob α) (p q : α → Prop) : ℝ :=
-  f.pr (λ x ↦ p x ∧ q x) / f.pr q
+  f.pr (fun x ↦ p x ∧ q x) / f.pr q
 
 /-- Conditional expectations: f.cexp u q = E_f(u | q) = f.exp (u * q) / f.pr q -/
-def Prob.cexp (f : Prob α) (u : α → ℝ) (q : α → Prop) : ℝ :=
-  f.exp (λ x ↦ if q x then u x else 0) / f.pr q
+def Prob.cexp (f : Prob α) (u : α → V) (q : α → Prop) : V :=
+  (f.pr q)⁻¹ • f.exp (fun x ↦ if q x then u x else 0)
 
 namespace Prob
 
@@ -71,19 +72,19 @@ lemma ext_iff {f g : Prob α} : f = g ↔ ∀ x, f.prob x = g.prob x := by
 
 /-- Prob is a monad -/
 instance : Monad Prob where
-  pure := λ x ↦ {
+  pure := fun x ↦ {
     prob := Finsupp.single x 1
     prob_nonneg := by intro x; simp only [Finsupp.single_apply]; split; norm_num; norm_num
     total := Finsupp.sum_single_index rfl
   }
-  bind := λ f g ↦ by
-    set prob := f.prob.sum (λ x p ↦ p • (g x).prob)
+  bind := fun f g ↦ by
+    set prob := f.prob.sum (fun x p ↦ p • (g x).prob)
     have nonneg : ∀ x, 0 ≤ prob x := by
       intro _; simp only [Finsupp.sum_apply, prob]; apply Finset.sum_nonneg
       intro _ _; exact mul_nonneg f.prob_nonneg (g _).prob_nonneg
-    have total : prob.sum (λ _ p ↦ p) = 1 := by
+    have total : prob.sum (fun _ p ↦ p) = 1 := by
       rw [Finsupp.sum_sum_index]
-      · have e : ∀ (p : ℝ) x, (p • (g x).prob).sum (λ _ q ↦ q) = p := by
+      · have e : ∀ (p : ℝ) x, (p • (g x).prob).sum (fun _ q ↦ q) = p := by
           intro p x; rw [Finsupp.sum_smul_index, ←Finsupp.mul_sum, Prob.total, mul_one]
           simp only [implies_true]
         simp only [e, Prob.total]

@@ -11,27 +11,28 @@ open scoped Real
 noncomputable section
 
 variable {α β : Type}
+variable {V : Type} [AddCommGroup V] [Module ℝ V]
 
 namespace Prob
 
 -- Arithmetic
-instance : Zero (Prob ℝ) where zero := return 0
-instance : One (Prob ℝ) where one := return 1
-instance : Neg (Prob ℝ) where neg f := return -(←f)
-instance : Add (Prob ℝ) where add f g := return (←f) + (←g)
-instance : Mul (Prob ℝ) where mul f g := return (←f) * (←g)
-instance : SMul ℝ (Prob ℝ) where smul s f := return s * (←f)
+instance [Zero α] : Zero (Prob α) where zero := return 0
+instance [One α] : One (Prob α) where one := return 1
+instance [Neg α] : Neg (Prob α) where neg f := return -(←f)
+instance [Add α] : Add (Prob α) where add f g := return (←f) + (←g)
+instance [Mul α] : Mul (Prob α) where mul f g := return (←f) * (←g)
+instance : SMul ℝ (Prob V) where smul s f := return s • (←f)
 
 -- Arithmetic definitions expanded
-lemma zero_eq : (0 : Prob ℝ) = pure 0 := rfl
-lemma one_eq : (1 : Prob ℝ) = pure 1 := rfl
-lemma neg_eq (f : Prob ℝ) : -f = do let x ← f; return -x := rfl
-lemma add_eq (f g : Prob ℝ) : f + g = do let x ← f; let y ← g; return x + y := rfl
-lemma mul_eq (f g : Prob ℝ) : f * g = do let x ← f; let y ← g; return x * y := rfl
-lemma smul_eq (s : ℝ) (f : Prob ℝ) : s • f = do let x ← f; return s * x := rfl
+lemma zero_eq [Zero α] : (0 : Prob α) = pure 0 := rfl
+lemma one_eq [One α] : (1 : Prob α) = pure 1 := rfl
+lemma neg_eq [Neg α] (f : Prob α) : -f = do let x ← f; return -x := rfl
+lemma add_eq [Add α] (f g : Prob α) : f + g = do let x ← f; let y ← g; return x + y := rfl
+lemma mul_eq [Mul α] (f g : Prob α) : f * g = do let x ← f; let y ← g; return x * y := rfl
+lemma smul_eq (s : ℝ) (f : Prob V) : s • f = do let x ← f; return s • x := rfl
 
 /-- Prob is a commutative monoid (not a group since x - x ≠ 0) -/
-instance : AddCommMonoid (Prob ℝ) where
+instance : AddCommMonoid (Prob V) where
   add_assoc x y z := by simp only [add_eq, bind_assoc, pure_bind, add_assoc]
   zero_add x := by simp only [add_eq, zero_eq, pure_bind, zero_add, bind_pure]
   add_zero x := by simp only [add_eq, zero_eq, pure_bind, add_zero, bind_pure]
@@ -40,13 +41,13 @@ instance : AddCommMonoid (Prob ℝ) where
 
 /-- • distributes over + -/
 instance : DistribMulAction ℝ (Prob ℝ) where
-  one_smul x := by simp only [smul_eq, one_mul, bind_pure]
-  mul_smul a b x := by simp only [mul_eq, smul_eq, bind_pure, bind_assoc, pure_bind, mul_assoc]
-  smul_zero x := by simp only [smul_eq, zero_eq, pure_bind, mul_zero]
-  smul_add a x y := by simp only [smul_eq, add_eq, bind_assoc, pure_bind, mul_add]
+  one_smul x := by simp only [smul_eq, one_smul, bind_pure]
+  mul_smul a b x := by simp only [smul_eq, smul_eq_mul, mul_assoc, bind_assoc, pure_bind]
+  smul_zero x := by simp only [zero_eq, smul_eq, smul_eq_mul, pure_bind, mul_zero]
+  smul_add a x y := by simp only [add_eq, smul_eq, smul_eq_mul, bind_assoc, pure_bind, mul_add]
 
 /-- map.exp is exp of composition -/
-lemma exp_map (f : α → β) (g : Prob α) (h : β → ℝ) : (f <$> g).exp h = g.exp (h ∘ f) := by
+lemma exp_map (f : α → β) (g : Prob α) (h : β → V) : (f <$> g).exp h = g.exp (h ∘ f) := by
   simp only [map_eq, exp_bind, exp_pure]; rfl
 
 -- Basics of mean
@@ -56,27 +57,35 @@ lemma mean_bind (f : Prob α) (g : α → Prob ℝ) : (f >>= g).mean = f.exp (fu
 lemma mean_map (f : α → ℝ) (g : Prob α) : (f <$> g).mean = g.exp f := by
   simp only [mean, exp_map, Function.comp, id]
 
--- Expectation is linear (weak version for independent events)
+-- Expectation is linear (weak version for independent events, smul version)
+lemma exp_const_smul (s : ℝ) (f : Prob α) (g : α → V) :
+    f.exp (fun x ↦ s • g x) = s • f.exp (fun x ↦ g x) := by
+  simp only [exp, smul_comm _ s, ← Finsupp.smul_sum]
+lemma exp_smul_const (s : V) (f : Prob α) (g : α → ℝ) :
+    f.exp (fun x ↦ g x • s) = f.exp (fun x ↦ g x) • s := by
+  simp only [exp, ← smul_assoc, Finsupp.sum_smul]
+lemma exp_add (f : Prob α) (g h : α → V) : f.exp (fun x ↦ g x + h x) = f.exp g + f.exp h := by
+  simp only [exp, smul_add]; exact Finset.sum_add_distrib
+lemma exp_const_add (f : Prob α) (g : V) (h : α → V) : f.exp (fun x ↦ g + h x) = g + f.exp h := by
+  simp only [exp_add, exp_const]
+lemma exp_add_const (f : Prob α) (g : α → V) (h : V) : f.exp (fun x ↦ g x + h) = f.exp g + h := by
+  simp only [exp_add, exp_const]
+lemma exp_neg (f : Prob α) (g : α → V) : f.exp (fun x ↦ -g x) = -f.exp g := by
+  rw [← neg_one_smul (R := ℝ), ← exp_const_smul]
+  simp only [neg_smul, one_smul]
+lemma exp_sub (f : Prob α) (g h : α → V) : f.exp (fun x ↦ g x - h x) = f.exp g - f.exp h := by
+  simp only [sub_eq_add_neg, exp_add, exp_neg]
+
+-- Expectation is linear (weak version for independent events, mul version)
 lemma exp_const_mul (s : ℝ) (f : Prob α) (g : α → ℝ) :
     f.exp (fun x ↦ s * g x) = s * f.exp (fun x ↦ g x) := by
-  simp only [exp, ←mul_assoc _ s _, mul_comm _ s, mul_assoc s _ _, ←Finsupp.mul_sum]
+  simp only [← smul_eq_mul, exp_const_smul]
 lemma exp_mul_const (s : ℝ) (f : Prob α) (g : α → ℝ) :
     f.exp (fun x ↦ g x * s) = f.exp (fun x ↦ g x) * s := by
   simp only [mul_comm _ s, exp_const_mul]
 lemma exp_div (s : ℝ) (f : Prob α) (g : α → ℝ) :
     f.exp (fun x ↦ g x / s) = f.exp (fun x ↦ g x) / s := by
   simp only [div_eq_inv_mul, exp_const_mul]
-lemma exp_add (f : Prob α) (g h : α → ℝ) : f.exp (fun x ↦ g x + h x) = f.exp g + f.exp h := by
-  simp only [exp, mul_add]; exact Finset.sum_add_distrib
-lemma exp_const_add (f : Prob α) (g : ℝ) (h : α → ℝ) : f.exp (fun x ↦ g + h x) = g + f.exp h := by
-  simp only [exp_add, exp_const]
-lemma exp_add_const (f : Prob α) (g : α → ℝ) (h : ℝ) : f.exp (fun x ↦ g x + h) = f.exp g + h := by
-  simp only [exp_add, exp_const]
-lemma exp_neg (f : Prob α) (g : α → ℝ) : f.exp (fun x ↦ -g x) = -f.exp g := by
-  simp only [neg_eq_neg_one_mul (g _), exp_const_mul]
-  simp only [neg_mul, one_mul]
-lemma exp_sub (f : Prob α) (g h : α → ℝ) : f.exp (fun x ↦ g x - h x) = f.exp g - f.exp h := by
-  simp only [sub_eq_add_neg, exp_add, exp_neg]
 
 -- Expectation is monotonic
 lemma exp_mono {f : Prob α} {g h : α → ℝ} (gh : ∀ x, f.prob x ≠ 0 → g x ≤ h x) :
@@ -93,8 +102,8 @@ lemma exp_mono' {f g : Prob α} (u v : α → ℝ) (h : ∀ x, f.prob x * u x �
   rw [Finset.sum_subset (Finset.subset_union_left f.prob.support g.prob.support),
     Finset.sum_subset (Finset.subset_union_right f.prob.support g.prob.support)]
   · apply Finset.sum_le_sum; intro _ _; apply h
-  · intro x _ m; simp only [Finsupp.mem_support_iff, ne_eq, not_not] at m; simp only [m, zero_mul]
-  · intro x _ m; simp only [Finsupp.mem_support_iff, ne_eq, not_not] at m; simp only [m, zero_mul]
+  · intro x _ m; simp only [Finsupp.mem_support_iff, ne_eq, not_not] at m; simp only [m, zero_smul]
+  · intro x _ m; simp only [Finsupp.mem_support_iff, ne_eq, not_not] at m; simp only [m, zero_smul]
 
 /-- Upper bounding an expectation by bounding each element -/
 lemma exp_le_of_forall_le {f : Prob α} {u : α → ℝ} {b : ℝ} (h : ∀ x, f.prob x ≠ 0 → u x ≤ b) :
@@ -107,8 +116,8 @@ lemma le_exp_of_forall_le {f : Prob α} {u : α → ℝ} {b : ℝ} (h : ∀ x, f
   rw [←exp_const f b]; exact exp_mono h
 
 -- Mean is linear
-lemma mean_smul (s : ℝ) (f : Prob ℝ) : (s • f).mean = s * f.mean := by
-  simp only [mean, smul_eq, exp_bind, exp_pure, id, exp_const_mul s f (fun x ↦ x)]
+lemma mean_smul (s : ℝ) (f : Prob V) : (s • f).mean = s • f.mean := by
+  simp only [mean, smul_eq, exp_bind, exp_pure, id, exp_const_smul s f (fun x ↦ x)]
   rfl
 lemma mean_add (f g : Prob ℝ) : (f + g).mean = f.mean + g.mean := by
   simp only [mean, add_eq, exp_bind, exp_pure, id, fun x ↦ exp_add g (fun _ ↦ x) (fun y ↦ y),
@@ -186,7 +195,7 @@ lemma pr_and_const {f : Prob α} {p : α → Prop} {q : Prop} :
   repeat simp only [h, and_true, if_true, mul_one, and_false, pr_false, if_false, mul_zero]
 
 /-- f.exp u = 0 in terms of forall -/
-lemma exp_eq_zero {f : Prob α} {u : α → ℝ} (u0 : ∀ x, f.prob x ≠ 0 → u x = 0) : f.exp u = 0 := by
+lemma exp_eq_zero {f : Prob α} {u : α → V} (u0 : ∀ x, f.prob x ≠ 0 → u x = 0) : f.exp u = 0 := by
   rw [←exp_const f 0]; exact exp_congr u0
 
 /-- f.pr p = 0 in terms of forall -/
@@ -277,20 +286,20 @@ lemma le_pr_bind_of_cut {f : Prob α} {g : α → Prob β} {p : β → Prop} {i 
   simp only [pr_bind]; exact le_exp_of_cut i a b fi gp (fun _ _ _ ↦ pr_nonneg) b0
 
 /-- exp when the support is a single element -/
-lemma exp_eq_single (f : Prob α) (g : α → ℝ) (y : α) (h : ∀ x, f.prob x ≠ 0 → x ≠ y → g x = 0) :
-    f.exp g = f.prob y * g y := by
+lemma exp_eq_single (f : Prob α) (g : α → V) (y : α) (h : ∀ x, f.prob x ≠ 0 → x ≠ y → g x = 0) :
+    f.exp g = f.prob y • g y := by
   rw [exp, Finsupp.sum, Finset.sum_eq_single y]
   · intro x px xy
     simp only [Finsupp.mem_support_iff] at px
-    simp only [px, false_or, h x px xy, mul_zero]
+    simp only [px, false_or, h x px xy, smul_zero]
   · intro py
     simp only [Finsupp.mem_support_iff, Decidable.not_not] at py
-    simp only [py, zero_mul]
+    simp only [py, zero_smul]
 
 /-- pr/exp of an indicator is just prob -/
 lemma pr_eq_prob (f : Prob α) (y : α) : f.pr (fun x ↦ x = y) = f.prob y := by
   rw [pr, exp_eq_single (y := y)]
-  · simp only [↓reduceIte, mul_one]
+  · simp only [↓reduceIte, smul_eq_mul, mul_one]
   · simp only [ite_eq_right_iff, one_ne_zero, imp_false, imp_self, implies_true]
 lemma exp_eq_prob (f : Prob α) (y : α) {d : ∀ x, Decidable (x = y)} :
     f.exp (fun x ↦ @ite _ (x = y) (d _) (1:ℝ) 0) = f.prob y := by
@@ -314,25 +323,28 @@ lemma exp_eq_zero_iff {f : Prob α} {u : α → ℝ} (h : ∀ x, f.prob x ≠ 0 
   · exact exp_eq_zero
 
 /-- Fintype expectations -/
-lemma exp_fintype (f : Prob α) [Fintype α] (g : α → ℝ) :
-    f.exp g = Finset.univ.sum (fun x ↦ f.prob x * g x) := by
-  simp only [exp, Finsupp.sum]; rw [Finset.sum_subset (Finset.subset_univ _)]
-  · intro _ _ m; simp only [Finsupp.mem_support_iff, ne_eq, not_not] at m; simp only [m, zero_mul]
+lemma exp_fintype (f : Prob α) [Fintype α] (g : α → V) :
+    f.exp g = Finset.univ.sum (fun x ↦ f.prob x • g x) := by
+  simp only [exp, Finsupp.sum]
+  rw [Finset.sum_subset (Finset.subset_univ _)]
+  intro _ _ m
+  simp only [Finsupp.mem_support_iff, ne_eq, not_not] at m
+  simp only [m, zero_smul]
 
 /-- Boolean expectations -/
-lemma exp_bool (f : Prob Bool) (g : Bool → ℝ) :
-    f.exp g = f.prob false * g false + f.prob true * g true := by
+lemma exp_bool (f : Prob Bool) (g : Bool → V) :
+    f.exp g = f.prob false • g false + f.prob true • g true := by
   simp only [exp_fintype, Fintype.sum_bool, add_comm]
 
 -- Given a bind, enrich the output type to include the intermediate type.  This lets us do
 -- probability calculations in a measure space that "includes the trace".
-lemma exp_enrich {f : Prob α} {g : α → Prob β} {u : β → ℝ} :
+lemma exp_enrich {f : Prob α} {g : α → Prob β} {u : β → V} :
     (f >>= g).exp u = (f >>= (fun x ↦ Prod.mk x <$> g x)).exp (fun y ↦ u y.2) := by
   simp only [exp_bind, exp_map]; apply exp_congr; intro x _; apply exp_congr; intro y _; rfl
 lemma pr_enrich {f : Prob α} {g : α → Prob β} {p : β → Prop} :
     (f >>= g).pr p = (f >>= (fun x ↦ Prod.mk x <$> g x)).pr (fun y ↦ p y.2) := by
   simp only [pr_bind, pr_map]
-lemma cexp_enrich {f : Prob α} {g : α → Prob β} {u : β → ℝ} {q : β → Prop} :
+lemma cexp_enrich {f : Prob α} {g : α → Prob β} {u : β → V} {q : β → Prop} :
     (f >>= g).cexp u q =
       (f >>= (fun x ↦ Prod.mk x <$> g x)).cexp (fun y ↦ u y.2) (fun y ↦ q y.2) := by
   rw [cexp, cexp, exp_enrich, pr_enrich]
@@ -344,7 +356,7 @@ lemma exp_le_exp_of_map {f : Prob α} {g : Prob β} {u : α → ℝ} {v : β →
     (v0 : ∀ y, g.prob y ≠ 0 → 0 ≤ v y) : f.exp u ≤ g.exp v := by
   simp only [exp, Finsupp.sum]
   apply Finset.sum_le_sum_of_map i inj uv
-  · intro y m; simp only [Finsupp.mem_support_iff, not_not] at m; simp only [m, zero_mul]
+  · intro y m; simp only [Finsupp.mem_support_iff, not_not] at m; simp only [m, zero_smul]
   · intro y m; simp only [Finsupp.mem_support_iff] at m; apply mul_nonneg (prob_nonneg _) (v0 _ m)
 
 /-- `(f >>= g).prob y ≠ 0` iff there is nonzero prob intermediate `x` -/

@@ -118,7 +118,7 @@ lemma Prob.bind_toPmf (f : Prob α) (g : α → Prob β) :
   ext y
   simp only [Prob.toPmf_coe, PMF.bind_apply', Prob.prob_bind, Prob.exp, Finsupp.sum,
     ←Finset.sum_ofReal fun _ ↦ mul_nonneg (prob_nonneg _) (prob_nonneg _),
-    ←ENNReal.ofReal_mul (prob_nonneg _)]
+    ←ENNReal.ofReal_mul (prob_nonneg _), smul_eq_mul]
   refine (HasSum.tsum_eq ?_).symm
   apply Finset.hasSum_sum
   intro _ m

@@ -1,3 +1,5 @@
+import Mathlib.LinearAlgebra.Finsupp
+import Misc.Finsupp
 import Prob.Defs
 
 /-!
@@ -7,10 +9,10 @@ import Prob.Defs
 open Classical
 open Prob
 open Set
-open scoped Real
 noncomputable section
 
 variable {α β γ : Type}
+variable {V : Type} [AddCommGroup V] [Module ℝ V]
 
 namespace Prob
 
@@ -24,8 +26,8 @@ lemma prob_pure (x y : α) : (pure x : Prob α).prob y = if y = x then 1 else 0 
   simp only [Prob.prob, prob_pure', Finsupp.single_apply, eq_comm]
 
 /-- pure.exp is function application -/
-@[simp] lemma exp_pure (x : α) (f : α → ℝ) : (pure x : Prob α).exp f = f x := by
-  simp only [exp, prob_pure', zero_mul, Finsupp.sum_single_index, one_mul]
+@[simp] lemma exp_pure (x : α) (f : α → V) : (pure x : Prob α).exp f = f x := by
+  simp only [exp, prob_pure', zero_smul, Finsupp.sum_single_index, one_smul]
 
 -- Basic definitions
 lemma map_eq (f : α → β) (x : Prob α) : f <$> x = x >>= (λ x ↦ pure (f x)) := rfl
@@ -40,19 +42,19 @@ lemma prob_bind (f : Prob α) (g : α → Prob β) (y : β) :
   apply Finsupp.sum_congr; intro x _; rw [Finsupp.coe_smul, Pi.smul_apply, smul_eq_mul]
 
 /-- bind.exp is iterated exp -/
-lemma exp_bind (f : Prob α) (g : α → Prob β) (h : β → ℝ) :
+lemma exp_bind (f : Prob α) (g : α → Prob β) (h : β → V) :
     (f >>= g).exp h = f.exp (λ x ↦ (g x).exp h) := by
   simp only [exp, prob_bind']; rw [Finsupp.sum_sum_index]
   · apply Finsupp.sum_congr; intro x _; rw [Finsupp.sum_smul_index]
-    · simp only [mul_assoc, ←Finsupp.mul_sum]
-    · intro _; simp only [zero_mul]
-  · intro _; simp only [zero_mul]
-  · intro _ _ _; simp only [add_mul]
+    · simp only [← smul_smul, ← Finsupp.smul_sum]
+    · intro _; simp only [zero_smul]
+  · intro _; simp only [zero_smul]
+  · intro _ _ _; simp only [add_smul]
 
 -- Monad laws for Prob
 lemma left_id (f : Prob α) : f >>= pure = f := by
   ext x; simp only [prob_bind, prob_pure, exp, mul_ite, mul_one, mul_zero, Finsupp.sum_ite_eq,
-    Finsupp.mem_support_iff, ne_eq, ite_not]
+    Finsupp.mem_support_iff, ne_eq, ite_not, smul_eq_mul]
   split_ifs; exact Eq.symm (by assumption); rfl
 lemma right_id (x : α) (f : α → Prob β) : pure x >>= f = f x := by
   ext y; simp only [prob_bind, prob_pure, exp_pure]
@@ -67,10 +69,14 @@ instance : LawfulMonad Prob := LawfulMonad.mk'
   (bind_assoc := assoc)
 
 /-- Independent expectations can be reordered -/
-lemma exp_comm (f : Prob α) (g : Prob β) (h : α → β → ℝ) :
+lemma exp_comm (f : Prob α) (g : Prob β) (h : α → β → V) :
     f.exp (λ x ↦ g.exp (λ y ↦ h x y)) = g.exp (λ y ↦ f.exp (λ x ↦ h x y)) := by
-  simp only [exp, Finsupp.mul_sum]; rw [Finsupp.sum_comm]
-  apply Finsupp.sum_congr; intro _ _; apply Finsupp.sum_congr; intro _ _; ring
+  simp only [exp, Finsupp.smul_sum]
+  rw [Finsupp.sum_comm]
+  refine Finsupp.sum_congr fun _ _ ↦ ?_
+  refine Finsupp.sum_congr fun _ _ ↦ ?_
+  simp only [smul_smul]
+  ring_nf
 
 /-- Independent computations can be reordered -/
 lemma bind_comm (f : Prob α) (g : Prob β) (h : α → β → Prob γ) :
@@ -83,8 +89,8 @@ lemma bind_comm_of_eq (f : Prob α) (g : Prob β) (h0 h1 : α → β → Prob γ
   rw [e]; apply bind_comm
 
 /-- Constants are their own expectation -/
-@[simp] lemma exp_const (f : Prob α) (x : ℝ) : f.exp (λ _ ↦ x) = x := by
-  simp only [exp, ←Finsupp.sum_mul, Prob.total, one_mul]
+@[simp] lemma exp_const (f : Prob α) (x : V) : f.exp (λ _ ↦ x) = x := by
+  simp only [exp, ← Finsupp.sum_smul, total, one_smul]
 
 /-- We can drop the left side of a bind if it's unused -/
 @[simp] lemma bind_const (f : Prob α) (g : Prob β) : f >>= (λ _ ↦ g) = g := by
@@ -101,13 +107,13 @@ lemma prob_map (f : α → β) (x : Prob α) (z : β) : (f <$> x).prob z = x.pr 
 lemma map_prob_of_inj {f : α → β} (inj : f.Injective) (x : Prob α) (y : α) :
     (f <$> x).prob (f y) = x.prob y := by
   simp only [prob_map, pr, exp, Finsupp.sum]; rw [Finset.sum_eq_single y]
-  · simp only [ite_true, mul_one, prob]
+  · simp only [↓reduceIte, smul_eq_mul, mul_one]
   · intro z m zy
     simp only [Finsupp.mem_support_iff, ne_eq] at m
-    simp only [inj.ne zy, ite_false, mul_zero]
+    simp only [inj.ne zy, ↓reduceIte, smul_eq_mul, mul_zero]
   · intro m
     simp only [Finsupp.mem_support_iff, ne_eq, not_not] at m
-    simp only [m, ite_true, mul_one]
+    simp only [m, ↓reduceIte, smul_eq_mul, mul_one]
 
 /-- prob is in [0,1] -/
 lemma prob_le_one (f : Prob α) (x : α) : f.prob x ≤ 1 := by
@@ -121,20 +127,20 @@ lemma prob_le_one (f : Prob α) (x : α) : f.prob x ≤ 1 := by
 lemma prob_mem_Icc (f : Prob α) (x : α) : f.prob x ∈ Icc 0 1 := ⟨prob_nonneg _, prob_le_one f x⟩
 
 /-- Congruence for exp -/
-lemma exp_congr {f : Prob α} {g h : α → ℝ} (e : ∀ x, f.prob x ≠ 0 → (g x = h x)) :
+lemma exp_congr {f : Prob α} {g h : α → V} (e : ∀ x, f.prob x ≠ 0 → (g x = h x)) :
     f.exp g = f.exp h := by
   simp only [exp]; apply Finsupp.sum_congr; intro x m
   simp only [Finsupp.mem_support_iff] at m; simp only [e _ m]
 
 /-- General congruence for exp, allowing the probabilities to be different -/
-lemma exp_congr' {f g : Prob α} {u v : α → ℝ} (h : ∀ x, f.prob x * u x = g.prob x * v x) :
+lemma exp_congr' {f g : Prob α} {u v : α → V} (h : ∀ x, f.prob x • u x = g.prob x • v x) :
     f.exp u = g.exp v := by
   simp only [exp, Finsupp.sum]
   rw [Finset.sum_subset (Finset.subset_union_left f.prob.support g.prob.support),
     Finset.sum_subset (Finset.subset_union_right f.prob.support g.prob.support)]
   · exact Finset.sum_congr rfl (λ _ _ ↦ h _)
-  · intro x _ m; simp only [Finsupp.mem_support_iff, not_not] at m; simp only [m, zero_mul]
-  · intro x _ m; simp only [Finsupp.mem_support_iff, not_not] at m; simp only [m, zero_mul]
+  · intro x _ m; simp only [Finsupp.mem_support_iff, not_not] at m; simp only [m, zero_smul]
+  · intro x _ m; simp only [Finsupp.mem_support_iff, not_not] at m; simp only [m, zero_smul]
 
 /-- Congruence for pr -/
 lemma pr_congr {f : Prob α} {p q : α → Prop} (e : ∀ x, f.prob x ≠ 0 → (p x ↔ q x)) :
