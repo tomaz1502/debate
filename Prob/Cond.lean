@@ -1,7 +1,7 @@
 import Prob.Arith
 
 /-!
-Conditional probabilities
+# Conditional probabilities
 -/
 
 open Classical

@@ -1,7 +1,7 @@
 import Mathlib.Data.Real.Basic
 
 /-!
-A few if utilities
+# A few `if` utilities
 -/
 
 /-- ↑x ≤ ↑y ↔ y → x -/

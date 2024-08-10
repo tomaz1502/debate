@@ -2,7 +2,7 @@ import Prob.Basics
 import Misc.If
 
 /-!
-Arithmetic on Prob
+# Arithmetic on Prob
 -/
 
 open Classical
@@ -51,26 +51,32 @@ lemma exp_map (f : α → β) (g : Prob α) (h : β → ℝ) : (f <$> g).exp h =
 
 -- Basics of mean
 lemma mean_pure (x : ℝ) : (pure x : Prob ℝ).mean = x := by simp only [mean, exp_pure, id]
-lemma mean_bind (f : Prob α) (g : α → Prob ℝ) : (f >>= g).mean = f.exp (λ x ↦ (g x).mean) := by
+lemma mean_bind (f : Prob α) (g : α → Prob ℝ) : (f >>= g).mean = f.exp (fun x ↦ (g x).mean) := by
   simp only [mean, exp_bind]
 lemma mean_map (f : α → ℝ) (g : Prob α) : (f <$> g).mean = g.exp f := by
   simp only [mean, exp_map, Function.comp, id]
 
 -- Expectation is linear (weak version for independent events)
 lemma exp_const_mul (s : ℝ) (f : Prob α) (g : α → ℝ) :
-    f.exp (λ x ↦ s * g x) = s * f.exp (λ x ↦ g x) := by
+    f.exp (fun x ↦ s * g x) = s * f.exp (fun x ↦ g x) := by
   simp only [exp, ←mul_assoc _ s _, mul_comm _ s, mul_assoc s _ _, ←Finsupp.mul_sum]
 lemma exp_mul_const (s : ℝ) (f : Prob α) (g : α → ℝ) :
-    f.exp (λ x ↦ g x * s) = f.exp (λ x ↦ g x) * s := by
+    f.exp (fun x ↦ g x * s) = f.exp (fun x ↦ g x) * s := by
   simp only [mul_comm _ s, exp_const_mul]
-lemma exp_div (s : ℝ) (f : Prob α) (g : α → ℝ) : f.exp (λ x ↦ g x / s) = f.exp (λ x ↦ g x) / s := by
+lemma exp_div (s : ℝ) (f : Prob α) (g : α → ℝ) :
+    f.exp (fun x ↦ g x / s) = f.exp (fun x ↦ g x) / s := by
   simp only [div_eq_inv_mul, exp_const_mul]
-lemma exp_add (f : Prob α) (g h : α → ℝ) : f.exp (λ x ↦ g x + h x) = f.exp g + f.exp h := by
+lemma exp_add (f : Prob α) (g h : α → ℝ) : f.exp (fun x ↦ g x + h x) = f.exp g + f.exp h := by
   simp only [exp, mul_add]; exact Finset.sum_add_distrib
-lemma exp_const_add (f : Prob α) (g : ℝ) (h : α → ℝ) : f.exp (λ x ↦ g + h x) = g + f.exp h := by
+lemma exp_const_add (f : Prob α) (g : ℝ) (h : α → ℝ) : f.exp (fun x ↦ g + h x) = g + f.exp h := by
   simp only [exp_add, exp_const]
-lemma exp_add_const (f : Prob α) (g : α → ℝ) (h : ℝ) : f.exp (λ x ↦ g x + h) = f.exp g + h := by
+lemma exp_add_const (f : Prob α) (g : α → ℝ) (h : ℝ) : f.exp (fun x ↦ g x + h) = f.exp g + h := by
   simp only [exp_add, exp_const]
+lemma exp_neg (f : Prob α) (g : α → ℝ) : f.exp (fun x ↦ -g x) = -f.exp g := by
+  simp only [neg_eq_neg_one_mul (g _), exp_const_mul]
+  simp only [neg_mul, one_mul]
+lemma exp_sub (f : Prob α) (g h : α → ℝ) : f.exp (fun x ↦ g x - h x) = f.exp g - f.exp h := by
+  simp only [sub_eq_add_neg, exp_add, exp_neg]
 
 -- Expectation is monotonic
 lemma exp_mono {f : Prob α} {g h : α → ℝ} (gh : ∀ x, f.prob x ≠ 0 → g x ≤ h x) :
@@ -102,11 +108,11 @@ lemma le_exp_of_forall_le {f : Prob α} {u : α → ℝ} {b : ℝ} (h : ∀ x, f
 
 -- Mean is linear
 lemma mean_smul (s : ℝ) (f : Prob ℝ) : (s • f).mean = s * f.mean := by
-  simp only [mean, smul_eq, exp_bind, exp_pure, id, exp_const_mul s f (λ x ↦ x)]
+  simp only [mean, smul_eq, exp_bind, exp_pure, id, exp_const_mul s f (fun x ↦ x)]
   rfl
 lemma mean_add (f g : Prob ℝ) : (f + g).mean = f.mean + g.mean := by
-  simp only [mean, add_eq, exp_bind, exp_pure, id, λ x ↦ exp_add g (λ _ ↦ x) (λ y ↦ y), exp_const,
-    exp_add]
+  simp only [mean, add_eq, exp_bind, exp_pure, id, fun x ↦ exp_add g (fun _ ↦ x) (fun y ↦ y),
+    exp_const, exp_add]
   rfl
 
 /-- Mean is multiplicative -/
@@ -118,14 +124,14 @@ lemma mean_mul (f g : Prob ℝ) : (f * g).mean = f.mean * g.mean := by
 lemma pr_nonneg {f : Prob α} {p : α → Prop} : 0 ≤ f.pr p := by
   simp only [pr]; apply exp_nonneg; intro x _; split; norm_num; rfl
 lemma pr_le_one {f : Prob α} {p : α → Prop} : f.pr p ≤ 1 := by
-  simp only [pr]; apply le_trans (@exp_mono _ f _ (λ _ ↦ 1) _)
+  simp only [pr]; apply le_trans (@exp_mono _ f _ (fun _ ↦ 1) _)
   · simp only [exp_const]; rfl
   · intro x _; split; rfl; norm_num
 lemma pr_mem_Icc {f : Prob α} {p : α → Prop} : f.pr p ∈ Icc 0 1 :=
   ⟨pr_nonneg, pr_le_one⟩
 
 /-- pr of a constant prop is either 1 or 0 -/
-lemma pr_const (f : Prob α) (p : Prop) : f.pr (λ _ ↦ p) = if p then (1:ℝ) else 0 := by
+lemma pr_const (f : Prob α) (p : Prop) : f.pr (fun _ ↦ p) = if p then (1:ℝ) else 0 := by
   simp only [pr, exp_const]
 
 /-- pr is monotonic -/
@@ -139,11 +145,11 @@ lemma pr_pure {x : α} (p : α → Prop) : (pure x : Prob α).pr p = if p x then
 
 /-- (f >>= g).pr works as expected -/
 lemma pr_bind {f : Prob α} {g : α → Prob β} (p : β → Prop) :
-    (f >>= g).pr p = f.exp (λ x ↦ (g x).pr p) := by
+    (f >>= g).pr p = f.exp (fun x ↦ (g x).pr p) := by
   simp only [pr, exp_bind]
 
 /-- (f <$> g).pr works as expected -/
-lemma pr_map {f : α → β} {g : Prob α} (p : β → Prop) : (f <$> g).pr p = g.pr (λ x ↦ p (f x)) := by
+lemma pr_map {f : α → β} {g : Prob α} (p : β → Prop) : (f <$> g).pr p = g.pr (fun x ↦ p (f x)) := by
   simp only [pr, exp_map, Function.comp]
 
 /-- f.exp g < f.exp h if g ≤ h and g x < h x on at least one nonzero probability x -/
@@ -154,9 +160,17 @@ lemma exp_lt_exp {f : Prob α} {g h : α → ℝ} (le : ∀ x, f.prob x ≠ 0 �
   · rcases lt with ⟨x,px,lt⟩; use x, mem_iff.mpr px
     exact mul_lt_mul_of_pos_left lt (px.symm.lt_of_le (prob_nonneg _))
 
+/-- `0 < f.exp g` if `0 ≤ g` and `0 < g x` on at least one nonzero probability `x` -/
+lemma exp_pos {f : Prob α} {g : α → ℝ} (le : ∀ x, f.prob x ≠ 0 → 0 ≤ g x)
+    (lt : ∃ x, f.prob x ≠ 0 ∧ 0 < g x) : 0 < f.exp g := by
+  refine lt_of_le_of_lt ?_ (exp_lt_exp le lt)
+  simp only [exp_const, le_refl]
+
 -- f.pr True = 1, resp False
-lemma pr_false {f : Prob α} : f.pr (λ _ ↦ False) = 0 := by simp only [pr, exp_const, if_false]
-lemma pr_true {f : Prob α} : f.pr (λ _ ↦ True) = 1 := by simp only [pr, exp_const, if_true]
+@[simp] lemma pr_false {f : Prob α} : f.pr (fun _ ↦ False) = 0 := by
+  simp only [pr, exp_const, if_false]
+@[simp] lemma pr_true {f : Prob α} : f.pr (fun _ ↦ True) = 1 := by
+  simp only [pr, exp_const, if_true]
 
 /-- f.pr p < f.pr q if p ≤ q and p x < q x on at least one nonzero probability x -/
 lemma pr_lt_pr {f : Prob α} {p q : α → Prop} (le : ∀ x, f.prob x ≠ 0 → p x → q x)
@@ -167,7 +181,7 @@ lemma pr_lt_pr {f : Prob α} {p q : α → Prop} (le : ∀ x, f.prob x ≠ 0 →
 
 /-- Pull ∧ const out of a pr -/
 lemma pr_and_const {f : Prob α} {p : α → Prop} {q : Prop} :
-    f.pr (λ x ↦ p x ∧ q) = f.pr p * (if q then 1 else 0) := by
+    f.pr (fun x ↦ p x ∧ q) = f.pr p * (if q then 1 else 0) := by
   by_cases h : q
   repeat simp only [h, and_true, if_true, mul_one, and_false, pr_false, if_false, mul_zero]
 
@@ -188,6 +202,10 @@ lemma pr_eq_zero {f : Prob α} {p : α → Prop} : f.pr p = 0 ↔ ∀ x, f.prob 
 lemma pr_ne_zero (f : Prob α) (p : α → Prop) : f.pr p ≠ 0 ↔ ∃ x, f.prob x ≠ 0 ∧ p x := by
   simp only [ne_eq, pr_eq_zero, not_forall, not_not, exists_prop]
 
+/-- `0 < pr` if there is some nonzero prob -/
+lemma pr_pos (f : Prob α) (p : α → Prop) : 0 < f.pr p ↔ ∃ x, f.prob x ≠ 0 ∧ p x := by
+  simp only [← pr_ne_zero, pr_nonneg.gt_iff_ne]
+
 /-- f.pr p = 1 in terms of forall -/
 lemma pr_eq_one {f : Prob α} {p : α → Prop} : f.pr p = 1 ↔ ∀ x, f.prob x ≠ 0 → p x := by
   constructor
@@ -198,15 +216,24 @@ lemma pr_eq_one {f : Prob α} {p : α → Prop} : f.pr p = 1 ↔ ∀ x, f.prob x
   · intro h; rw [←pr_true]; apply pr_congr; simp only [iff_true]; exact h
 
 /-- f.pr ¬p = 1 - f.pr p -/
-lemma pr_neg {f : Prob α} {p : α → Prop} : f.pr (λ x ↦ ¬p x) = 1 - f.pr p := by
+lemma pr_neg {f : Prob α} {p : α → Prop} : f.pr (fun x ↦ ¬p x) = 1 - f.pr p := by
   rw [eq_sub_iff_add_eq, ←pr_true]; simp only [pr, ←exp_add]; apply exp_congr;
   intro x _; simp only [if_true]; by_cases h : p x
   repeat simp [h]
-lemma pr_neg' {f : Prob α} {p : α → Prop} : f.pr p = 1 - f.pr (λ x ↦ ¬p x) := by
+lemma pr_neg' {f : Prob α} {p : α → Prop} : f.pr p = 1 - f.pr (fun x ↦ ¬p x) := by
   simp only [pr_neg, sub_sub_cancel]
 
+/-- `pr (p ∨ q) = pr p + pr q` given disjointness -/
+lemma pr_or {f : Prob α} {p q : α → Prop} (d : ∀ x, f.prob x ≠ 0 → ¬p x ∨ ¬q x) :
+    f.pr (fun x ↦ p x ∨ q x) = f.pr p + f.pr q := by
+  simp only [pr, ← exp_add]
+  refine exp_congr fun x fx ↦ ?_
+  by_cases px : p x
+  · simpa [px] using d x fx
+  · simp only [px, false_or, ↓reduceIte, zero_add]
+
 /-- pr (p ∨ q) ≤ pr p + pr q -/
-lemma pr_or_le {f : Prob α} (p q : α → Prop) : f.pr (λ x ↦ p x ∨ q x) ≤ f.pr p + f.pr q := by
+lemma pr_or_le {f : Prob α} (p q : α → Prop) : f.pr (fun x ↦ p x ∨ q x) ≤ f.pr p + f.pr q := by
   simp only [pr, ←exp_add]; apply exp_mono; intro x _
   by_cases px : p x
   · by_cases qx : q x
@@ -224,11 +251,11 @@ lemma pr_eq_add_of_cut {f : Prob α} {p : α → Prop} (q : α → Prop) :
 
 /-- Markov's inequality -/
 lemma markov' (f : Prob α) (g : α → ℝ) (f0 : ∀ x, f.prob x ≠ 0 → 0 ≤ g x) {a : ℝ} (a0 : 0 < a) :
-    f.pr (λ x ↦ a ≤ g x) ≤ f.exp g / a := by
+    f.pr (fun x ↦ a ≤ g x) ≤ f.exp g / a := by
   simp only [le_div_iff a0, pr, mean, ←exp_mul_const, ite_mul, one_mul, zero_mul, id];
   apply exp_mono; intro x m; split; assumption; exact f0 _ m
 lemma markov (f : Prob ℝ) (f0 : ∀ x, f.prob x ≠ 0 → 0 ≤ x) {a : ℝ} (a0 : 0 < a) :
-    f.pr (λ x ↦ a ≤ x) ≤ f.mean / a :=
+    f.pr (fun x ↦ a ≤ x) ≤ f.mean / a :=
   f.markov' _ f0 a0
 
 /-- Lower bounding an exp in terms of an event -/
@@ -247,22 +274,30 @@ lemma le_exp_of_cut {f : Prob α} {u : α → ℝ} (i : α → Prop) (a b : ℝ)
 lemma le_pr_bind_of_cut {f : Prob α} {g : α → Prob β} {p : β → Prop} {i : α → Prop} (a b : ℝ)
     (fi : a ≤ f.pr i) (gp : ∀ x, f.prob x ≠ 0 → i x → b ≤ (g x).pr p) (b0 : 0 ≤ b) :
     a * b ≤ (f >>= g).pr p := by
-  simp only [pr_bind]; exact le_exp_of_cut i a b fi gp (λ _ _ _ ↦ pr_nonneg) b0
+  simp only [pr_bind]; exact le_exp_of_cut i a b fi gp (fun _ _ _ ↦ pr_nonneg) b0
+
+/-- exp when the support is a single element -/
+lemma exp_eq_single (f : Prob α) (g : α → ℝ) (y : α) (h : ∀ x, f.prob x ≠ 0 → x ≠ y → g x = 0) :
+    f.exp g = f.prob y * g y := by
+  rw [exp, Finsupp.sum, Finset.sum_eq_single y]
+  · intro x px xy
+    simp only [Finsupp.mem_support_iff] at px
+    simp only [px, false_or, h x px xy, mul_zero]
+  · intro py
+    simp only [Finsupp.mem_support_iff, Decidable.not_not] at py
+    simp only [py, zero_mul]
 
 /-- pr/exp of an indicator is just prob -/
-lemma pr_eq_prob (f : Prob α) (y : α) : f.pr (λ x ↦ x = y) = f.prob y := by
-  simp only [pr, exp]; by_cases m : y ∈ f.supp
-  · rw [Finsupp.sum, Finset.sum_eq_single y]; simp only [ite_true, mul_one, prob]
-    · intro z _ zy; simp only [zy, if_false, mul_zero]
-    · intro n; simp only [m] at n
-      simp only [Finsupp.mem_support_iff, ne_eq, not_not] at n; simp only [n, ite_true, mul_one]
-  · rw [Finsupp.sum, Finset.sum_eq_zero]; rw [mem_iff, not_not] at m; exact m.symm
-    intro z n; by_cases zy : z = y
-    · simp only [supp, Finsupp.mem_support_iff, not_not, zy] at m n; simp only [n] at m
-    · simp only [zy, if_false, mul_zero]
+lemma pr_eq_prob (f : Prob α) (y : α) : f.pr (fun x ↦ x = y) = f.prob y := by
+  rw [pr, exp_eq_single (y := y)]
+  · simp only [↓reduceIte, mul_one]
+  · simp only [ite_eq_right_iff, one_ne_zero, imp_false, imp_self, implies_true]
 lemma exp_eq_prob (f : Prob α) (y : α) {d : ∀ x, Decidable (x = y)} :
-    f.exp (λ x ↦ @ite _ (x = y) (d _) (1:ℝ) 0) = f.prob y := by
+    f.exp (fun x ↦ @ite _ (x = y) (d _) (1:ℝ) 0) = f.prob y := by
   rw [←pr_eq_prob f y]; apply exp_congr; intro x _; rw [ite_one_zero_congr]
+lemma exp_eq_prob' (f : Prob α) (y : α) {d : ∀ x, Decidable (y = x)} :
+    f.exp (fun x ↦ @ite _ (y = x) (d _) (1:ℝ) 0) = f.prob y := by
+  simp only [eq_comm (a := y), exp_eq_prob]
 
 /-- `f.exp u = 0` in terms of forall, for nonnegative `u` -/
 lemma exp_eq_zero_iff {f : Prob α} {u : α → ℝ} (h : ∀ x, f.prob x ≠ 0 → 0 ≤ u x) :
@@ -292,13 +327,14 @@ lemma exp_bool (f : Prob Bool) (g : Bool → ℝ) :
 -- Given a bind, enrich the output type to include the intermediate type.  This lets us do
 -- probability calculations in a measure space that "includes the trace".
 lemma exp_enrich {f : Prob α} {g : α → Prob β} {u : β → ℝ} :
-    (f >>= g).exp u = (f >>= (λ x ↦ Prod.mk x <$> g x)).exp (λ y ↦ u y.2) := by
+    (f >>= g).exp u = (f >>= (fun x ↦ Prod.mk x <$> g x)).exp (fun y ↦ u y.2) := by
   simp only [exp_bind, exp_map]; apply exp_congr; intro x _; apply exp_congr; intro y _; rfl
 lemma pr_enrich {f : Prob α} {g : α → Prob β} {p : β → Prop} :
-    (f >>= g).pr p = (f >>= (λ x ↦ Prod.mk x <$> g x)).pr (λ y ↦ p y.2) := by
+    (f >>= g).pr p = (f >>= (fun x ↦ Prod.mk x <$> g x)).pr (fun y ↦ p y.2) := by
   simp only [pr_bind, pr_map]
 lemma cexp_enrich {f : Prob α} {g : α → Prob β} {u : β → ℝ} {q : β → Prop} :
-    (f >>= g).cexp u q = (f >>= (λ x ↦ Prod.mk x <$> g x)).cexp (λ y ↦ u y.2) (λ y ↦ q y.2) := by
+    (f >>= g).cexp u q =
+      (f >>= (fun x ↦ Prod.mk x <$> g x)).cexp (fun y ↦ u y.2) (fun y ↦ q y.2) := by
   rw [cexp, cexp, exp_enrich, pr_enrich]
 
 /-- Bound one exp in terms of another on a different space by injecting between the spaces -/
@@ -322,5 +358,30 @@ lemma prob_bind_ne_zero (f : Prob α) (g : α → Prob β) (y : β) :
     refine (lt_of_lt_of_le (mul_pos ?_ ?_) (le_prob_bind_of_cut x)).ne'
     · exact f0.symm.lt_of_le (prob_nonneg _)
     · exact g0.symm.lt_of_le (prob_nonneg _)
+
+/-- Commute a `∑` inside a `pr`, given disjointness -/
+lemma sum_pr_eq_pr_and (f : Prob α) (p : β → α → Prop) (s : Finset β)
+    (d : ∀ a b x, a ∈ s → b ∈ s → p a x → p b x → a = b) :
+    ∑ a ∈ s, f.pr (fun x ↦ p a x) = f.pr (fun x ↦ ∃ a ∈ s, p a x) := by
+  induction' s using Finset.induction with a s m h
+  · simp only [Finset.sum_empty, Finset.not_mem_empty, false_and, exists_false, pr_false]
+  · simp only [Finset.mem_insert] at d
+    rw [Finset.sum_insert m, h, ← pr_or]
+    · simp only [Finset.mem_insert, exists_eq_or_imp]
+    · intro x _
+      by_cases pax : p a x
+      · simp only [pax, not_true_eq_false, not_exists, not_and, false_or]
+        intro b bm
+        specialize d a b x
+        contrapose d
+        simp only [not_not] at d
+        simp only [d, true_or, bm, or_true, pax, true_implies, Classical.not_imp]
+        contrapose m
+        simp only [not_not] at m ⊢
+        simp only [m, bm]
+      · left; exact pax
+    · intro b c x bm cm pbx pcx
+      specialize d b c x
+      exact d (Or.inr bm) (Or.inr cm) pbx pcx
 
 end Prob

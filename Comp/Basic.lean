@@ -76,10 +76,20 @@ instance : LawfulMonad (Comp s) := LawfulMonad.mk'
     (Comp.pure' x : Comp s α).cost o i = 0 := by
   simp only [cost, run, exp_pure, Nat.cast_zero]
 
+/-- `pure'` is free -/
+@[simp] lemma cost'_pure' (x : α) (o : Oracle) (i : I) :
+    (Comp.pure' x : Comp s α).cost' o i = 0 := by
+  simp only [cost', cost_pure']
+
 /-- `sample'` cost's is the expected follow-on cost -/
 @[simp] lemma cost_sample (f : Prob α) (g : α → Comp s β) (o : I → Oracle) (i : I) :
     (Comp.sample' f g).cost o i = f.exp (fun x ↦ (g x).cost o i) := by
   simp only [cost, run, exp_bind, Nat.cast_zero]
+
+/-- `sample'` cost's is the expected follow-on cost -/
+@[simp] lemma cost'_sample (f : Prob α) (g : α → Comp s β) (o : Oracle) (i : I) :
+    (Comp.sample' f g).cost' o i = f.exp (fun x ↦ (g x).cost' o i) := by
+  simp only [cost', cost_sample]
 
 /-- `query'` costs one query, plus the rest -/
 @[simp] lemma cost_query' {i : I} (m : i ∈ s) {n : ℕ} (y : Vector Bool n) (f0 f1 : Comp s α)
