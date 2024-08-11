@@ -296,6 +296,28 @@ lemma exp_eq_single (f : Prob α) (g : α → V) (y : α) (h : ∀ x, f.prob x �
     simp only [Finsupp.mem_support_iff, Decidable.not_not] at py
     simp only [py, zero_smul]
 
+/-- Special cases of `exp_eq_single` involving `delta` functions -/
+@[simp] lemma exp_delta_smul (f : Prob α) (z : α) (u : α → V) :
+    f.exp (fun x ↦ delta x z • u x) = f.prob z • u z := by
+  rw [exp_eq_single _ _ z]
+  · simp only [delta_self, one_smul]
+  · intro _ _ h; simp [h]
+@[simp] lemma exp_delta_smul' (f : Prob α) (z : α) (u : α → V) :
+    f.exp (fun x ↦ delta z x • u x) = f.prob z • u z := by
+  simp only [delta_comm z, exp_delta_smul]
+@[simp] lemma exp_delta_mul (f : Prob α) (z : α) (u : α → ℝ) :
+    f.exp (fun x ↦ delta x z * u x) = f.prob z * u z := by
+  simp only [← smul_eq_mul, exp_delta_smul]
+@[simp] lemma exp_delta_mul' (f : Prob α) (z : α) (u : α → ℝ) :
+    f.exp (fun x ↦ delta z x * u x) = f.prob z * u z := by
+  simp only [← smul_eq_mul, exp_delta_smul']
+@[simp] lemma exp_mul_delta (f : Prob α) (z : α) (u : α → ℝ) :
+    f.exp (fun x ↦ u x * delta x z) = f.prob z * u z := by
+  simp only [mul_comm (u _), exp_delta_mul]
+@[simp] lemma exp_mul_delta' (f : Prob α) (z : α) (u : α → ℝ) :
+    f.exp (fun x ↦ u x * delta z x) = f.prob z * u z := by
+  simp only [mul_comm (u _), exp_delta_mul']
+
 /-- pr/exp of an indicator is just prob -/
 lemma pr_eq_prob (f : Prob α) (y : α) : f.pr (fun x ↦ x = y) = f.prob y := by
   rw [pr, exp_eq_single (y := y)]

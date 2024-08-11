@@ -26,3 +26,25 @@ lemma ite_and_one_zero (x y : Prop) {d : Decidable (x ∧ y)} :
 
 lemma ite_one_zero_nonneg {x : Prop} {d : Decidable x} : 0 ≤ @ite _ x d (1:ℝ) 0 := by
   split_ifs; repeat norm_num
+
+/-!
+### Kronecker delta
+
+This is nice notation, but it also makes lets us reason without worrying about particular
+decidable instances.
+-/
+
+variable {α : Type}
+open Classical
+
+/-- Kronecker delta function -/
+noncomputable def delta (x y : α) : ℝ := if x = y then 1 else 0
+
+-- Basic properties of `delta`
+@[simp] lemma delta_self (x : α) : delta x x = 1 := by simp [delta]
+@[simp] lemma delta_ne {x y : α} (ne : x ≠ y) : delta x y = 0 := by simp [delta, ne]
+lemma delta_comm (x y : α) : delta x y = delta y x := by simp [delta, eq_comm]
+
+-- Turn `if` into `delta`
+lemma ite_eq_delta (x y : α) {d : Decidable (x = y)} : @ite _ (x = y) d 1 0 = delta x y := by
+  simp only [delta]; split_ifs; all_goals rfl
