@@ -18,7 +18,7 @@ open scoped Real
 noncomputable section
 
 variable {i : OracleId}
-variable {o : Oracle}
+variable {o : DOracle}
 variable {n t : ℕ}
 variable {k c s b e p q v : ℝ}
 
@@ -27,18 +27,18 @@ variable {k c s b e p q v : ℝ}
 -/
 
 /-- Alice takes the expected number of samples -/
-@[simp] lemma alice_cost {y : Vector Bool n} {o : Oracle} :
+@[simp] lemma alice_cost {y : Vector Bool n} {o : DOracle} :
     (alice c q _ y).cost (fun _ ↦ o) AliceId = samples c q := by
   simp only [alice, alice', Comp.cost_estimate, Comp.cost_query, mul_one]
 
 /-- Bob takes the expected number of samples -/
-@[simp] lemma bob_cost {y : Vector Bool n} {p : ℝ} {o : Oracle} :
+@[simp] lemma bob_cost {y : Vector Bool n} {p : ℝ} {o : DOracle} :
     (bob s b q _ y p).cost (fun _ => o) BobId = samples ((b-s)/2) q := by
   simp only [bob, bob', alice', Comp.cost_bind, Comp.cost_estimate, Comp.cost_query, mul_one,
     Comp.prob_estimate, Comp.prob_query, Comp.cost_pure, exp_const, add_zero]
 
 /-- Vera takes the expected number of samples -/
-@[simp] lemma vera_cost {y : Vector Bool n} {p : ℝ} {o : Oracle} :
+@[simp] lemma vera_cost {y : Vector Bool n} {p : ℝ} {o : DOracle} :
     (vera c s v _ y p).cost (fun _ => o) VeraId = samples ((s-c)/2) v := by
   simp only [vera, bob', alice', Comp.cost_bind, Comp.cost_estimate, Comp.cost_query, mul_one,
     Comp.prob_estimate, Comp.prob_query, Comp.cost_pure, exp_const, add_zero]
@@ -48,7 +48,7 @@ variable {k c s b e p q v : ℝ}
 -/
 
 /-- Alice makes few queries, regardless of Bob and Vera -/
-lemma alice_steps_cost (o : Oracle) (bob : Bob) (vera : Vera) (n : ℕ):
+lemma alice_steps_cost (o : DOracle) (bob : Bob) (vera : Vera) (n : ℕ):
     (steps (alice c q) bob vera n).cost (fun _ ↦ o) AliceId ≤ n * samples c q := by
   induction' n with n h
   · simp only [Nat.zero_eq, steps, Comp.cost_pure, CharP.cast_eq_zero, zero_mul, le_refl]
@@ -67,7 +67,7 @@ lemma alice_steps_cost (o : Oracle) (bob : Bob) (vera : Vera) (n : ℕ):
       · simp only [ite_true, Comp.cost_sample, Comp.cost_pure, exp_const, le_refl]
 
 /-- Bob makes few queries, regardless of Alice and Vera -/
-lemma bob_steps_cost (o : Oracle) (alice : Alice) (vera : Vera) (n : ℕ):
+lemma bob_steps_cost (o : DOracle) (alice : Alice) (vera : Vera) (n : ℕ):
     (steps alice (bob s b q) vera n).cost (fun _ ↦ o) BobId ≤ n * samples ((b-s)/2) q := by
   induction' n with n h
   · simp only [Nat.zero_eq, steps, Comp.cost_pure, CharP.cast_eq_zero, zero_mul, le_refl]
@@ -89,7 +89,7 @@ lemma bob_steps_cost (o : Oracle) (alice : Alice) (vera : Vera) (n : ℕ):
       · simp only [ite_true, Comp.cost_sample, Comp.cost_pure, exp_const]
 
 /-- Alice makes few queries, regardless of Bob and Vera -/
-theorem alice_debate_cost (o : Oracle) (bob : Bob) (vera : Vera) (t : ℕ):
+theorem alice_debate_cost (o : DOracle) (bob : Bob) (vera : Vera) (t : ℕ):
     (debate (alice c q) bob vera t).cost' o AliceId ≤ (t+1) * samples c q := by
   simp only [debate, Comp.cost', Comp.cost_bind]
   have e : ((t:ℝ) + 1) * samples c q = (t + 1) * samples c q + 0 := by rw [add_zero]
@@ -100,7 +100,7 @@ theorem alice_debate_cost (o : Oracle) (bob : Bob) (vera : Vera) (t : ℕ):
     induction y; repeat simp only [Comp.cost_pure, le_refl]
 
 /-- Bob makes few queries, regardless of Alice and Vera -/
-theorem bob_debate_cost (o : Oracle) (alice : Alice) (vera : Vera) (t : ℕ):
+theorem bob_debate_cost (o : DOracle) (alice : Alice) (vera : Vera) (t : ℕ):
     (debate alice (bob s b q) vera t).cost' o BobId ≤ (t+1) * samples ((b-s)/2) q := by
   simp only [debate, Comp.cost', Comp.cost_bind]
   have e : ∀ x, ((t:ℝ) + 1) * samples x q = (t + 1) * samples x q + 0 := by
@@ -157,7 +157,7 @@ def StateV (n : ℕ) := Except (Σ n : ℕ, Vector Bool n × ℝ) (Vector Bool n
 /-- One step of the debate protocol, without Vera
     c and s are the completeness and soundness parameters of the verifier. -/
 def stepV (alice : Alice) (bob : Bob) (y : Vector Bool n) :
-    Comp {AliceId,BobId} (StateV (n+1)) := do
+    DComp {AliceId,BobId} (StateV (n+1)) := do
   let p ← (alice _ y).allow (by subset)
   if ←(bob _ y p).allow (by subset) then do  -- Bob accepts Alice's probability, so take the step
     let x ← bernoulli p  -- This is Figure 4, steps 2b,2c,2d, as a fixed part of the protocol
@@ -166,14 +166,14 @@ def stepV (alice : Alice) (bob : Bob) (y : Vector Bool n) :
     return .error ⟨_,y,p⟩
 
 /-- `n` steps of the debate protocol, without Vera -/
-def stepsV (alice : Alice) (bob : Bob) : (n : ℕ) → Comp {AliceId,BobId} (StateV n)
+def stepsV (alice : Alice) (bob : Bob) : (n : ℕ) → DComp {AliceId,BobId} (StateV n)
 | 0 => pure (.ok Vector.nil)
 | n+1 => do match ←stepsV alice bob n with
   | .ok y => stepV alice bob y
   | .error r => return .error r
 
 /-- Turn `StateV` into `State` with a Vera call -/
-def postV (vera : Vera) (x : StateV n) : Comp AllIds (State n) := match x with
+def postV (vera : Vera) (x : StateV n) : DComp AllIds (State n) := match x with
 | .ok y => return .ok y
 | .error ⟨_,y,p⟩ => return .error (←(vera _ y p).allow_all)
 
@@ -196,7 +196,7 @@ lemma post_stepsV (alice : Alice) (bob : Bob) (vera : Vera) :
         simp only [Comp.allow, pure_bind, Comp.sample'_bind, postV]
 
 /-- Vera makes few queries, regardless of Alice and Bob -/
-theorem vera_debate_cost (o : Oracle) (alice : Alice) (bob : Bob) (t : ℕ):
+theorem vera_debate_cost (o : DOracle) (alice : Alice) (bob : Bob) (t : ℕ):
     (debate alice bob (vera c s v) t).cost' o VeraId ≤ samples ((s-c)/2) v := by
   have z : (stepsV alice bob (t+1)).cost (fun _ ↦ o) VeraId = 0 := by zero_cost
   simp only [Comp.cost', debate, ← post_stepsV, bind_assoc, Comp.cost_bind, Comp.cost_allow_all, z,

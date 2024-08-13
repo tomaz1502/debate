@@ -28,6 +28,10 @@ inductive OracleId where
 export OracleId (AliceId BobId VeraId)
 abbrev AllIds := @univ OracleId
 
+-- Abbreviations fixing the oracle input type to `List Bool`
+abbrev DComp (s : Set OracleId) (α : Type) := Comp (List Bool) s α
+abbrev DOracle := Oracle (List Bool)
+
 -- Next, we give type signatures for Alice and Bob, and the protocol that connects them.
 -- See Figure 1 in the paper for the corresponding prose description.  We differ from Figure 1
 -- in that we treat steps (2b,2c,2d) as fixed parts of the protocol, rather than agent moves.
@@ -39,7 +43,7 @@ def State (n : ℕ) := Except Bool (Vector Bool n)
 
 /-- Alice takes the transcript so far and estimates a probability that the next step is 1.
     Alice's goal is to produce output 1.  An honest Alice will try to mimic Oracle.fold. -/
-def Alice' (o : OracleId) := (n : ℕ) → Vector Bool n → Comp {o} ℝ
+def Alice' (o : OracleId) := (n : ℕ) → Vector Bool n → DComp {o} ℝ
 
 /-- Alice using the normal `AliceId` -/
 def Alice := Alice' AliceId
@@ -48,20 +52,20 @@ def Alice := Alice' AliceId
     Technically in Figure 4 Bob also sees the chosen bit, but this is irrelevant to the protocol.
     In the game, Bob's goal is to produce output 0.  An honest Bob will yell iff Alice doesn't
     mimic Oracle.fold. -/
-def Bob' (o : OracleId) := (n : ℕ) → Vector Bool n → ℝ → Comp {o} Bool
+def Bob' (o : OracleId) := (n : ℕ) → Vector Bool n → ℝ → DComp {o} Bool
 
 /-- Bob using the normal `BobId` -/
 def Bob := Bob' BobId
 
 /-- Verifiers have an identical type signature to Bob, but use weaker parameters. -/
-def Vera := (n : ℕ) → Vector Bool n → ℝ → Comp {VeraId} Bool
+def Vera := (n : ℕ) → Vector Bool n → ℝ → DComp {VeraId} Bool
 
 /-- Enough samples to estimate a probability with error < e with failure probability ≤ q -/
 def samples (e q : ℝ) : ℕ := Nat.ceil (-Real.log (q/2) / (2 * e^2))
 
 /-- Honest Alice estimates the correct probability within error < e with failure probability ≤ q -/
 def alice' (e q : ℝ) (o : OracleId) : Alice' o := λ _ y ↦
-  estimate (query o y) (samples e q)
+  estimate (query o y.toList) (samples e q)
 
 def alice (e q : ℝ) : Alice := alice' e q AliceId
 
@@ -88,7 +92,7 @@ def vera (s v q : ℝ) : Vera := bob' s v q VeraId
 
 /-- One step of the debate protocol -/
 def step (alice : Alice) (bob : Bob) (vera : Vera) (y : Vector Bool n) :
-    Comp AllIds (State (n+1)) := do
+    DComp AllIds (State (n+1)) := do
   let p ← (alice _ y).allow_all
   if ←(bob _ y p).allow_all then do  -- Bob accepts Alice's probability, so take the step
     let x ← bernoulli p  -- This is Figure 4, steps 2b,2c,2d, as a fixed part of the protocol
@@ -97,14 +101,14 @@ def step (alice : Alice) (bob : Bob) (vera : Vera) (y : Vector Bool n) :
     return .error (←(vera _ y p).allow_all)
 
 /-- n steps of the debate protocol -/
-def steps (alice : Alice) (bob : Bob) (vera : Vera) : (n : ℕ) → Comp AllIds (State n)
+def steps (alice : Alice) (bob : Bob) (vera : Vera) : (n : ℕ) → DComp AllIds (State n)
 | 0 => pure (.ok Vector.nil)
 | n+1 => do match ←steps alice bob vera n with
   | .ok y => step alice bob vera y
   | .error r => return .error r
 
 /-- The full debate protocol that stitches these together -/
-def debate (alice : Alice) (bob : Bob) (vera : Vera) (t : ℕ) : Comp AllIds Bool := do
+def debate (alice : Alice) (bob : Bob) (vera : Vera) (t : ℕ) : DComp AllIds Bool := do
   match ←steps alice bob vera (t+1) with
   | .ok y => return y.head
   | .error r => return r
@@ -120,8 +124,8 @@ structure Correct (w k : ℝ) (t : ℕ) (alice : Alice) (bob : Bob) (vera : Vera
   /-- Success is more likely than failure -/
   half_lt_w : 1/2 < w
   /-- If we're in the language, Alice wins -/
-  complete : ∀ (o : Oracle) (eve : Bob), o.lipschitz t k → (o.final t).prob true ≥ 2/3 →
+  complete : ∀ (o : DOracle) (eve : Bob), o.lipschitz t k → (o.final t).prob true ≥ 2/3 →
     ((debate alice eve vera t).prob' o).prob true ≥ w
   /-- If we're out of the language, Bob wins -/
-  sound : ∀ (o : Oracle) (eve : Alice), o.lipschitz t k → (o.final t).prob false ≥ 2/3 →
+  sound : ∀ (o : DOracle) (eve : Alice), o.lipschitz t k → (o.final t).prob false ≥ 2/3 →
     ((debate eve bob vera t).prob' o).prob false ≥ w

@@ -14,13 +14,13 @@ noncomputable section
 variable {t : ℕ} {k : ℝ}
 
 /-- Completeness for any valid parameters -/
-theorem completeness (o : Oracle) (L : o.lipschitz t k) (eve : Bob)
+theorem completeness (o : DOracle) (L : o.lipschitz t k) (eve : Bob)
     {w d : ℝ} (p : Params w d k t) (m : w ≤ (o.final t).prob true) :
     d ≤ ((debate (alice p.c p.q) eve (vera p.c p.s p.v) t).prob' o).prob true :=
   completeness_p o L eve p m
 
 /-- Soundness for any valid parameters -/
-theorem soundness (o : Oracle) (L : o.lipschitz t k) (eve : Alice)
+theorem soundness (o : DOracle) (L : o.lipschitz t k) (eve : Alice)
     {w d : ℝ} (p : Params w d k t) (m : w ≤ (o.final t).prob false) :
     d ≤ ((debate eve (bob p.s p.b p.q) (vera p.c p.s p.v) t).prob' o).prob false :=
   soundness_p o L eve p m

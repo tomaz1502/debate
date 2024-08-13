@@ -20,8 +20,9 @@ open Set
 open scoped Real
 noncomputable section
 
+variable {α β : Type}
 variable {i : OracleId}
-variable {o : Oracle}
+variable {o : DOracle}
 variable {n t : ℕ}
 variable {k c s b e p q v : ℝ}
 
@@ -37,10 +38,10 @@ def samples' (e q : ℝ) : ℝ := -Real.log (q/2) / (2 * e^2)
 lemma le_samples (e q : ℝ) : samples' e q ≤ samples e q := Nat.le_ceil _
 
 /-- Honest Alice has error ≥ e with probability ≤ q -/
-lemma alice_pr_le (o : Oracle) (i : OracleId) (e0 : 0 < e) (q0 : 0 < q) (y : Vector Bool n) :
-    ((alice' e q i _ y).prob' o).pr (fun p ↦ e ≤ |p - (o _ y).prob true|) ≤ q := by
+lemma alice_pr_le (o : DOracle) (i : OracleId) (e0 : 0 < e) (q0 : 0 < q) (y : Vector Bool n) :
+    ((alice' e q i _ y).prob' o).pr (fun p ↦ e ≤ |p - (o y.toList).prob true|) ≤ q := by
   simp only [alice', Comp.prob', Comp.prob_estimate, Comp.prob_query]
-  refine le_trans (chernoff_estimate_abs_le (o _ y) (samples e q) (le_of_lt e0)) ?_
+  refine le_trans (chernoff_estimate_abs_le (o y.toList) (samples e q) (le_of_lt e0)) ?_
   have le : -2 * ↑(samples e q) * e^2 ≤ -2 * samples' e q * e^2 :=
     mul_le_mul_of_nonneg_right (mul_le_mul_of_nonpos_left (le_samples _ _) (by norm_num))
       (sq_nonneg _)
@@ -51,21 +52,21 @@ lemma alice_pr_le (o : Oracle) (i : OracleId) (e0 : 0 < e) (q0 : 0 < q) (y : Vec
 
 /-- Honest Alice has error ≤ e with probability ≥ 1 - q
     < e is also true, but annoying to work with later. -/
-lemma le_alice_pr (o : Oracle) (i : OracleId) (e0 : 0 < e) (q0 : 0 < q) (y : Vector Bool n) :
-    1 - q ≤ ((alice' e q i _ y).prob' o).pr (fun p ↦ |p - (o _ y).prob true| ≤ e) := by
-  trans ((alice' e q i _ y).prob' o).pr (fun p ↦ |p - (o _ y).prob true| < e)
+lemma le_alice_pr (o : DOracle) (i : OracleId) (e0 : 0 < e) (q0 : 0 < q) (y : Vector Bool n) :
+    1 - q ≤ ((alice' e q i _ y).prob' o).pr (fun p ↦ |p - (o y.toList).prob true| ≤ e) := by
+  trans ((alice' e q i _ y).prob' o).pr (fun p ↦ |p - (o y.toList).prob true| < e)
   · rw [pr_neg']; simp only [not_lt]; linarith [alice_pr_le o i e0 q0 y]
   · apply pr_mono; intro _ _ h; exact le_of_lt h
 
 /-- Honest Bob usually accepts if Alice is off by ≤ c -/
-lemma bob_complete (o : Oracle) (i : OracleId) (cs : c < s) (q0 : 0 < q) {y : Vector Bool n}
-    (good : |p - (o _ y).prob true| ≤ c) :
+lemma bob_complete (o : DOracle) (i : OracleId) (cs : c < s) (q0 : 0 < q) {y : Vector Bool n}
+    (good : |p - (o y.toList).prob true| ≤ c) :
     ((bob' c s q i _ y p).prob' o).prob false ≤ q := by
   simp only [bob', prob_bind, prob_pure, false_eq_decide_iff, not_lt, Comp.prob',
     Comp.prob_bind, Comp.prob_pure]
   rw [←pr]
   refine le_trans (pr_mono ?_) (alice_pr_le o i (by linarith) q0 y)
-  intro b _ h; generalize hx : (o _ y).prob true = x; rw [hx] at good; clear hx
+  intro b _ h; generalize hx : (o y.toList).prob true = x; rw [hx] at good; clear hx
   have e : b - x = -((p - b) - (p - x)) := by abel
   rw [e, abs_neg]; refine le_trans ?_ (abs_sub_abs_le_abs_sub _ _)
   calc (s - c) / 2
@@ -73,14 +74,14 @@ lemma bob_complete (o : Oracle) (i : OracleId) (cs : c < s) (q0 : 0 < q) {y : Ve
     _ ≤ |p - b| - |p - x| := sub_le_sub h good
 
 /-- Honest Bob usually rejects if Alice is off by ≥ s -/
-lemma bob_sound (o : Oracle) (i : OracleId) (cs : c < s) (q0 : 0 < q) {y : Vector Bool n}
-    (bad : |p - (o _ y).prob true| ≥ s) :
+lemma bob_sound (o : DOracle) (i : OracleId) (cs : c < s) (q0 : 0 < q) {y : Vector Bool n}
+    (bad : |p - (o y.toList).prob true| ≥ s) :
     ((bob' c s q i _ y p).prob' o).prob true ≤ q := by
   simp only [bob', prob_bind, prob_pure, true_eq_decide_iff, not_lt, Comp.prob',
     Comp.prob_bind, Comp.prob_pure]
   rw [←pr]
   refine le_trans (pr_mono ?_) (alice_pr_le o i (by linarith) q0 y)
-  intro b _ h; generalize hx : (o _ y).prob true = x; rw [hx] at bad; clear hx
+  intro b _ h; generalize hx : (o y.toList).prob true = x; rw [hx] at bad; clear hx
   have e : b - x = (p - x) - (p - b) := by abel
   rw [e]; refine le_trans ?_ (abs_sub_abs_le_abs_sub _ _)
   calc (s - c) / 2
@@ -96,7 +97,7 @@ form where Alice moves first, then Bob moves.
 -/
 
 /-- All of Alice's moves, and the resulting trace -/
-def alices (o : Oracle) (alice : Alice) : (n : ℕ) → Prob (Vector ℝ n × Vector Bool n)
+def alices (o : DOracle) (alice : Alice) : (n : ℕ) → Prob (Vector ℝ n × Vector Bool n)
 | 0 => pure (Vector.nil, Vector.nil)
 | n+1 => do
   let (p,y) ← alices o alice n
@@ -105,7 +106,7 @@ def alices (o : Oracle) (alice : Alice) : (n : ℕ) → Prob (Vector ℝ n × Ve
   return (q ::ᵥ p, x ::ᵥ y)
 
 /-- All of Bob's moves, after Alice's -/
-def bobs (o : Oracle) (bob : Bob) (vera : Vera) {n : ℕ} (p : Vector ℝ n) (y : Vector Bool n) :
+def bobs (o : DOracle) (bob : Bob) (vera : Vera) {n : ℕ} (p : Vector ℝ n) (y : Vector Bool n) :
     Prob (Option Bool) :=
   match n with
   | 0 => pure none
@@ -117,7 +118,7 @@ def bobs (o : Oracle) (bob : Bob) (vera : Vera) {n : ℕ} (p : Vector ℝ n) (y 
       return if b then none else some v
 
 /-- All of Alice's moves prior to Bob's, producing the full trace -/
-def trace (o : Oracle) (alice : Alice) (bob : Bob) (vera : Vera) (t : ℕ) :
+def trace (o : DOracle) (alice : Alice) (bob : Bob) (vera : Vera) (t : ℕ) :
     Prob ((Vector ℝ (t+1) × Vector Bool (t+1)) × Option Bool) := do
   let a ← alices o alice (t+1)
   Prod.mk a <$> bobs o bob vera a.1 a.2
@@ -128,7 +129,7 @@ def extract (x : (Vector ℝ (t+1) × Vector Bool (t+1)) × Option Bool) : Bool 
   | some r => r
 
 /-- debate, with all of Alice's moves prior to Bob's, and producing the full trace -/
-def transposed (o : Oracle) (alice : Alice) (bob : Bob) (vera : Vera) (t : ℕ) : Prob Bool :=
+def transposed (o : DOracle) (alice : Alice) (bob : Bob) (vera : Vera) (t : ℕ) : Prob Bool :=
   extract <$> trace o alice bob vera t
 
 /-- Shim to turn alices >>= bobs into steps -/
@@ -137,7 +138,7 @@ def shim {n : ℕ} (y : Vector Bool n) : Option Bool → State n
 | none => .ok y
 
 /-- The transposed formulation of debate is the same -/
-lemma debate_eq_transposed (o : Oracle) (alice : Alice) (bob : Bob) (vera : Vera) (t : ℕ) :
+lemma debate_eq_transposed (o : DOracle) (alice : Alice) (bob : Bob) (vera : Vera) (t : ℕ) :
     (debate alice bob vera t).prob' o = transposed o alice bob vera t := by
   have h : ∀ n, (steps alice bob vera n).prob (fun _ ↦ o) =
       alices o alice n >>= fun (p,y) ↦ shim y <$> bobs o bob vera p y := by
@@ -175,11 +176,11 @@ only moderately.
 -/
 
 /-- The exact probabilities given a trace -/
-def Oracle.probs (o : Oracle) {n : ℕ} (y : Vector Bool n) : Vector ℝ n := match n with
+def Oracle.probs (o : DOracle) {n : ℕ} (y : Vector Bool n) : Vector ℝ n := match n with
 | 0 => Vector.nil
-| _+1 => (o _ y.tail).prob true ::ᵥ o.probs y.tail
-lemma Oracle.probs_succ (o : Oracle) {n : ℕ} {y : Vector Bool (n+1)} :
-    o.probs y = (o n y.tail).prob true ::ᵥ o.probs y.tail := rfl
+| _+1 => (o y.tail.toList).prob true ::ᵥ o.probs y.tail
+lemma Oracle.probs_succ (o : DOracle) {n : ℕ} {y : Vector Bool (n+1)} :
+    o.probs y = (o y.tail.toList).prob true ::ᵥ o.probs y.tail := rfl
 
 /-- Closeness for two probability vectors -/
 def close (x y : Vector ℝ n) (e : ℝ) : Prop := ∀ i, |x.get i - y.get i| ≤ e
@@ -195,8 +196,8 @@ lemma close_mono {x y : Vector ℝ n} (xy : close x y c) (cs : c ≤ s) : close 
   simp only [close] at xy ⊢; intro i; exact le_trans (xy i) cs
 
 /-- (o.fold (n+1)).prob y decomposes as a product -/
-lemma Oracle.fold_succ_prob (o : Oracle) {n : ℕ} (y : Vector Bool (n+1)) :
-    (o.fold (n+1)).prob y = (o.fold n).prob y.tail * (o _ y.tail).prob y.head := by
+lemma Oracle.fold_succ_prob (o : DOracle) {n : ℕ} (y : Vector Bool (n+1)) :
+    (o.fold (n+1)).prob y = (o.fold n).prob y.tail * (o y.tail.toList).prob y.head := by
   simp only [Oracle.fold, prob_bind, prob_pure, Vector.eq_cons_iff, ite_and_one_zero, exp_mul_const,
     @eq_comm _ y.head]
   rw [←exp_eq_prob, ←exp_mul_const]; apply exp_congr'
@@ -206,18 +207,16 @@ lemma Oracle.fold_succ_prob (o : Oracle) {n : ℕ} (y : Vector Bool (n+1)) :
   · intro _; exact Classical.dec _
 
 /-- Snap an Alice into a close oracle -/
-def snap (o : Oracle) (alice : Alice) (e : ℝ) : Oracle := fun _ y ↦ do
-  let p ← (alice _ y).prob' o
-  let q := (o _ y).prob true
+def snap (o : DOracle) (alice : Alice) (e : ℝ) : DOracle := fun y ↦ do
+  let p ← (alice _ ⟨y,rfl⟩).prob' o
+  let q := (o y).prob true
   let p := if |p - q| ≤ e then p else q
   bernoulli p
 
 /-- Snap produces a close oracle -/
 lemma snap_dist (alice : Alice) (e0 : 0 < e) : dist o (snap o alice e) ≤ e := by
   simp only [dist]; apply csSup_le (Set.range_nonempty _); intro p
-  simp only [mem_range, forall_exists_index]; intro n h; rw [←h]; clear h
-  apply csSup_le (Set.range_nonempty _); intro d h
-  simp only [mem_range] at h; rcases h with ⟨y,h⟩; rw [←h]; clear h
+  simp only [mem_range, forall_exists_index]; intro y h; rw [←h]; clear h
   simp only [snap, prob_bind, abs_le]; constructor
   · rw [le_sub_iff_add_le, add_comm, ←sub_eq_add_neg, sub_le_iff_le_add]
     apply exp_le_of_forall_le; intro q _; simp only [bernoulli_prob_true']
@@ -225,16 +224,16 @@ lemma snap_dist (alice : Alice) (e0 : 0 < e) : dist o (snap o alice e) ≤ e := 
     split_ifs with h; linarith [h.1]; linarith
   · rw [sub_le_iff_le_add, add_comm, ←sub_le_iff_le_add]
     apply le_exp_of_forall_le; intro q _; simp only [bernoulli_prob_true']
-    apply le_max_of_le_right; apply le_min; linarith [prob_le_one (o _ y) true]
+    apply le_max_of_le_right; apply le_min; linarith [prob_le_one (o y) true]
     split_ifs with h; linarith; linarith
 
 /-- All of Alice's moves, but with probabilities snapped to close when sampling -/
-def snaps (o : Oracle) (alice : Alice) (e : ℝ) : (n : ℕ) → Prob (Vector ℝ n × Vector Bool n)
+def snaps (o : DOracle) (alice : Alice) (e : ℝ) : (n : ℕ) → Prob (Vector ℝ n × Vector Bool n)
 | 0 => pure (Vector.nil, Vector.nil)
 | n+1 => do
   let (p,y) ← snaps o alice e n
   let q ← (alice _ y).prob' o
-  let c := (o _ y).prob true
+  let c := (o y.toList).prob true
   let x ← bernoulli (if |q - c| ≤ e then q else c)
   return (q ::ᵥ p, x ::ᵥ y)
 
@@ -261,6 +260,13 @@ lemma snaps_prob (alice : Alice) {p : Vector ℝ n} {y : Vector Bool n} (c : clo
 /-- Final result of snaps -/
 def final (x : Vector ℝ (t+1) × Vector Bool (t+1)) : Bool := x.2.head
 
+/-- Clean up bad `alice` calls -/
+@[simp] lemma alice_toList (alice : Alice) (n : ℕ) (y : Vector Bool n) :
+    ∀ h, alice y.toList.length ⟨y.toList, h⟩ = alice n y := by
+  intro h
+  obtain ⟨y,rfl⟩ := y
+  rfl
+
 /-- As an oracle, snaps looks like snap (fold version) -/
 lemma snaps_eq_snap_fold (alice : Alice) (n : ℕ) :
     Prod.snd <$> snaps o alice e n = (snap o alice e).fold n := by
@@ -268,7 +274,7 @@ lemma snaps_eq_snap_fold (alice : Alice) (n : ℕ) :
   · simp only [snaps, map_pure, Oracle.fold]
   · simp only [snaps, Oracle.fold, map_bind, map_pure, ←h, map_eq, bind_assoc]
     apply congr_arg₂ _ rfl; ext ⟨p,y⟩
-    simp only [pure_bind, snap, bind_assoc]
+    simp only [pure_bind, snap, bind_assoc, alice_toList]
 
 /-- As an oracle, snaps looks like snap (final version) -/
 lemma snaps_eq_snap_final (alice : Alice) (t : ℕ) :
@@ -293,7 +299,7 @@ We prove all intermediate theorems with flexible constants, then pick at the end
 -/
 
 /-- Alice produces (p,y) with p close to o.probs y with good probability -/
-lemma alices_close (o : Oracle) (e0 : 0 < e) (q0 : 0 < q) (q1 : q ≤ 1) (n : ℕ) :
+lemma alices_close (o : DOracle) (e0 : 0 < e) (q0 : 0 < q) (q1 : q ≤ 1) (n : ℕ) :
     (1 - q : ℝ)^n ≤ (alices o (alice e q) n).pr (fun (p,y) ↦ close p (o.probs y) e) := by
   induction' n with n h
   · simp only [Nat.zero_eq, pow_zero, alices, close_nil, pr_pure, if_true, le_refl]
@@ -308,7 +314,7 @@ lemma alices_close (o : Oracle) (e0 : 0 < e) (q0 : 0 < q) (q1 : q ≤ 1) (n : �
 
 /-- Alice produces (p,y) with p close and y true with good probability, since if we condition on
     Alice being close she does as least as well as a close oracle. -/
-lemma alices_success (o : Oracle) (L : o.lipschitz t k) (e0 : 0 < e) (q0 : 0 < q) (q1 : q ≤ 1) :
+lemma alices_success (o : DOracle) (L : o.lipschitz t k) (e0 : 0 < e) (q0 : 0 < q) (q1 : q ≤ 1) :
     (o.final t).prob true - k * e - ((1:ℝ) - (1 - q : ℝ)^(t+1)) ≤
       (alices o (alice e q) (t+1)).pr (fun (p,y) => close p (o.probs y) e ∧ y.head) := by
   trans (snaps o (alice e q) e (t+1)).pr (fun (_,y) => y.head) - (1 - (1 - q)^(t+1))
@@ -335,7 +341,7 @@ lemma alices_success (o : Oracle) (L : o.lipschitz t k) (e0 : 0 < e) (q0 : 0 < q
         simp only [pr_neg, ae]; linarith [alices_close o e0 q0 q1 (t+1)]
 
 /-- If Alice is correct and Bob rejects, the probability of false is low -/
-lemma evil_bobs_lies' (o : Oracle) (eve : Bob) (cs : c < s) (v0 : 0 < v)
+lemma evil_bobs_lies' (o : DOracle) (eve : Bob) (cs : c < s) (v0 : 0 < v)
     {p : Vector ℝ n} {y : Vector Bool n} (py : close p (o.probs y) c) :
     (bobs o eve (vera c s v) p y).cond (fun r ↦ r = some false) (fun r ↦ r.isSome) ≤ v := by
   have v0' := le_of_lt v0
@@ -375,7 +381,7 @@ lemma evil_bobs_lies' (o : Oracle) (eve : Bob) (cs : c < s) (v0 : 0 < v)
                 intro x _; simp only [prob_pure, if_false]
 
 /-- If Alice is good, the probability of false is low -/
-lemma evil_bobs_lies (o : Oracle) (eve : Bob) (cs : c < s) (v0 : 0 < v)
+lemma evil_bobs_lies (o : DOracle) (eve : Bob) (cs : c < s) (v0 : 0 < v)
     {p : Vector ℝ (t+1)} {y : Vector Bool (t+1)} (py : close p (o.probs y) c) (yt : y.head) :
     (bobs o eve (vera c s v) p y).pr (fun r ↦ extract ((p,y),r) = false) ≤ v := by
   rw [pr_eq_cond_add_cond (fun r : Option Bool ↦ r.isSome)]
@@ -392,7 +398,7 @@ lemma evil_bobs_lies (o : Oracle) (eve : Bob) (cs : c < s) (v0 : 0 < v)
   | none => simp at ri
 
 /-- Alice wins the debate with good probability -/
-theorem completeness' (o : Oracle) (L : o.lipschitz t k) (eve : Bob)
+theorem completeness' (o : DOracle) (L : o.lipschitz t k) (eve : Bob)
     (c0 : 0 < c) (cs : c < s) (q0 : 0 < q) (q1 : q ≤ 1) (v0 : 0 < v) (v1 : v ≤ 1) :
     (1 - v) * ((o.final t).prob true - k * c - (1 - (1 - q) ^ (t + 1))) ≤
       ((debate (alice c q) eve (vera c s v) t).prob' o).prob true := by
@@ -424,7 +430,7 @@ for closeness during completeness.
 
 /-- Evil Alice produces a close true trace with low probability, since by remaining close
     she looks like a close oracle. -/
-lemma evil_alices_lies (o : Oracle) (L : o.lipschitz t k) (eve : Alice) (e0 : 0 < e) :
+lemma evil_alices_lies (o : DOracle) (L : o.lipschitz t k) (eve : Alice) (e0 : 0 < e) :
     (alices o eve (t+1)).pr (fun (p,y) ↦ close p (o.probs y) e ∧ y.head) ≤
       (o.final t).prob true + k * e := by
   trans (snaps o eve e (t+1)).pr (fun (p,y) ↦ close p (o.probs y) e ∧ y.head)
@@ -450,7 +456,7 @@ lemma option_bool_univ : (Finset.univ : Finset (Option Bool)) = {some true, some
 
 /-- If Honest Bob rejects, Vera usually complains.  The error probability is higher if Bob
     does complain, though, so we use an expectation over vera_score. -/
-lemma bobs_safe (o : Oracle) (cs : c < s) (sb : s < b) (q0 : 0 < q) (v0 : 0 < v) (v1 : v ≤ 1)
+lemma bobs_safe (o : DOracle) (cs : c < s) (sb : s < b) (q0 : 0 < q) (v0 : 0 < v) (v1 : v ≤ 1)
     (qv : q ≤ v) (p : Vector ℝ n) (y : Vector Bool n) :
     (1 - v) * (1 - q) ^ n ≤ (bobs o (bob s b q) (vera c s v) p y).exp (vera_score v) := by
   induction' n with n h
@@ -473,7 +479,7 @@ lemma bobs_safe (o : Oracle) (cs : c < s) (sb : s < b) (q0 : 0 < q) (v0 : 0 < v)
         trans bn.exp (fun r ↦ ((vera c s v _ y.tail p.head).prob' o).exp (fun x ↦
           (if some false = if r then none else some x then 1 else 0) +
           (if none = if r then none else some x then 1 else 0) * (1 - v)))
-        · by_cases ps : |p.head - (o _ y.tail).prob true| ≤ s
+        · by_cases ps : |p.head - (o y.tail.toList).prob true| ≤ s
           · rw [mul_comm]
             refine le_exp_of_cut (fun x ↦ x = true) (1-q) (1-v) ?_ ?_ ?_ (by linarith)
             · have bc := bob_complete o BobId sb q0 ps
@@ -495,7 +501,7 @@ lemma bobs_safe (o : Oracle) (cs : c < s) (sb : s < b) (q0 : 0 < q) (v0 : 0 < v)
           convert le_refl _
 
 /-- If Alice lies about probabilities by more than b, Bob usually catches Alice in a lie -/
-lemma bobs_catches (o : Oracle) (cs : c < s) (sb : s < b) (q0 : 0 < q) (v0 : 0 < v) (v1 : v ≤ 1)
+lemma bobs_catches (o : DOracle) (cs : c < s) (sb : s < b) (q0 : 0 < q) (v0 : 0 < v) (v1 : v ≤ 1)
     (qv : q ≤ v) {p : Vector ℝ n} {y : Vector Bool n} (pb : ¬close p (o.probs y) b) :
     (1 - v) * (1 - q) ^ n ≤ (bobs o (bob s b q) (vera c s v) p y).pr (fun r ↦ r = some false) := by
   induction' n with n h
@@ -538,7 +544,7 @@ lemma bobs_catches (o : Oracle) (cs : c < s) (sb : s < b) (q0 : 0 < q) (v0 : 0 <
       · intro _ _ f; simp only [f, pr_pure, if_true]; linarith
 
 /-- Bob wins the debate with probability ≥ 8/15 -/
-theorem soundness' (o : Oracle) (L : o.lipschitz t k) (eve : Alice)
+theorem soundness' (o : DOracle) (L : o.lipschitz t k) (eve : Alice)
     (c0 : 0 < c) (cs : c < s) (sb : s < b) (q0 : 0 < q) (v0 : 0 < v) (v1 : v ≤ 1) (qv : q ≤ v) :
     (1 - v) * (1 - q) ^ (t+1) * ((o.final t).prob false - k * b) ≤
       ((debate eve (bob s b q) (vera c s v) t).prob' o).prob false := by
@@ -634,7 +640,7 @@ structure Params (w d k : ℝ) (t : ℕ) where
   sound : d ≤ (1-v) * (1 - q * (t+1)) * (w - k * b)
 
 /-- Completeness for any valid parameters -/
-theorem completeness_p (o : Oracle) (L : o.lipschitz t k) (eve : Bob)
+theorem completeness_p (o : DOracle) (L : o.lipschitz t k) (eve : Bob)
     {w d : ℝ} (p : Params w d k t) (m : w ≤ (o.final t).prob true) :
     d ≤ ((debate (alice p.c p.q) eve (vera p.c p.s p.v) t).prob' o).prob true := by
   refine le_trans (le_trans p.complete ?_) (completeness' o L eve p.c0 p.cs p.q0 p.q1 p.v0 p.v1)
@@ -644,7 +650,7 @@ theorem completeness_p (o : Oracle) (L : o.lipschitz t k) (eve : Bob)
   apply one_add_mul_le_pow; linarith [p.q1]
 
 /-- Soundness for any valid parameters -/
-theorem soundness_p (o : Oracle) (L : o.lipschitz t k) (eve : Alice)
+theorem soundness_p (o : DOracle) (L : o.lipschitz t k) (eve : Alice)
     {w d : ℝ} (p : Params w d k t) (m : w ≤ (o.final t).prob false) :
     d ≤ ((debate eve (bob p.s p.b p.q) (vera p.c p.s p.v) t).prob' o).prob false := by
   refine le_trans (le_trans p.sound ?_) (soundness' o L eve p.c0 p.cs p.sb p.q0 p.v0 p.v1 p.qv)
