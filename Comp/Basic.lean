@@ -71,6 +71,10 @@ instance : LawfulMonad (Comp ι s) := LawfulMonad.mk'
 @[simp] lemma cost_pure (x : α) (o : I → Oracle ι) (i : I) : (pure x : Comp ι s α).cost o i = 0 := by
   simp only [cost, run, exp_pure, Nat.cast_zero]
 
+/-- `pure` is free -/
+@[simp] lemma cost'_pure (x : α) (o : Oracle ι) (i : I) : (pure x : Comp ι s α).cost' o i = 0 := by
+  simp only [cost', cost_pure]
+
 /-- `pure'` is free -/
 @[simp] lemma cost_pure' (x : α) (o : I → Oracle ι) (i : I) :
     (Comp.pure' x : Comp ι s α).cost o i = 0 := by

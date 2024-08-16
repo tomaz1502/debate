@@ -179,4 +179,19 @@ lemma le_prob_bind_of_cut {f : Prob α} {g : α → Prob β} (x : α) {y : β} :
     simp only [m, zero_mul]
     exact Finset.sum_nonneg (λ _ _ ↦ p _)
 
-end Prob
+/-- `p.supp` is never empty -/
+lemma card_supp_ne_zero (p : Prob α) : p.supp.card ≠ 0 := by
+  have t := p.total
+  contrapose t
+  simp only [supp, ne_eq, Finset.card_eq_zero, Finsupp.support_eq_empty, not_not] at t
+  simp only [t, Finsupp.sum_zero_index, zero_ne_one, not_false_eq_true]
+
+/-- `p.supp` is never empty -/
+lemma card_supp_pos (p : Prob α) : 0 < p.supp.card := by
+  have h := p.card_supp_ne_zero
+  omega
+
+/-- `(pure x).supp` is a singleton -/
+@[simp] lemma supp_pure (x : α) : (pure x : Prob α).supp = {x} := by
+  ext y
+  simp [supp, prob_pure]

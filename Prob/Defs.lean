@@ -38,7 +38,7 @@ def Prob.supp (f : Prob α) : Finset α := f.prob.support
 def Prob.exp (f : Prob α) (g : α → V) : V :=
   f.prob.sum (fun x p ↦ p • g x)
 
-/-- Expectation of a real-valued distribution -/
+/-- Expectation of a vector-valued distribution -/
 def Prob.mean (f : Prob V) : V := f.exp id
 
 /-- The probability that a prop holds -/
@@ -54,6 +54,8 @@ def Prob.cexp (f : Prob α) (u : α → V) (q : α → Prop) : V :=
   (f.pr q)⁻¹ • f.exp (fun x ↦ if q x then u x else 0)
 
 namespace Prob
+
+attribute [simp] prob_nonneg
 
 -- Basics
 lemma zero_iff {f : Prob α} {x : α} : f.prob x = 0 ↔ x ∉ f.supp := Finsupp.not_mem_support_iff.symm

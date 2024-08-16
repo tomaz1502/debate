@@ -70,13 +70,13 @@ def prob (f : Comp ι s α) (o : I → Oracle ι) : Prob α :=
 @[simp] def prob' (f : Comp ι s α) (o : Oracle ι) : Prob α :=
   f.prob fun _ ↦ o
 
-/-- The expected query cost of a `Comp α`.
+/-- The expected query cost of a `Comp ι α`.
     There is a design decision here to make the theory about expected cost.  My guess is that
     will make the downstream theory slightly easier. -/
 def cost (f : Comp ι s α) (o : I → Oracle ι) (i : I) : ℝ :=
   (f.run o).exp fun (_,c) ↦ c i
 
-/-- The expected query cost of a `Comp α` when all oracles are the same. -/
+/-- The expected query cost of a `Comp ι α` when all oracles are the same. -/
 def cost' (f : Comp ι s α) (o : Oracle ι) : I → ℝ :=
   f.cost fun _ ↦ o
 

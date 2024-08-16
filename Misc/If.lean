@@ -34,7 +34,7 @@ This is nice notation, but it also makes lets us reason without worrying about p
 decidable instances.
 -/
 
-variable {α : Type}
+variable {α β : Type}
 open Classical
 
 /-- Kronecker delta function -/
@@ -43,8 +43,13 @@ noncomputable def delta (x y : α) : ℝ := if x = y then 1 else 0
 -- Basic properties of `delta`
 @[simp] lemma delta_self (x : α) : delta x x = 1 := by simp [delta]
 @[simp] lemma delta_ne {x y : α} (ne : x ≠ y) : delta x y = 0 := by simp [delta, ne]
+@[simp] lemma delta_ne' {x y : α} (ne : y ≠ x) : delta x y = 0 := by simp [delta, ne.symm]
 lemma delta_comm (x y : α) : delta x y = delta y x := by simp [delta, eq_comm]
 
--- Turn `if` into `delta`
+/-- Turn `if` into `delta` -/
 lemma ite_eq_delta (x y : α) {d : Decidable (x = y)} : @ite _ (x = y) d 1 0 = delta x y := by
   simp only [delta]; split_ifs; all_goals rfl
+
+/-- `delta` splits for pairs -/
+@[simp] lemma delta_pair (x y : α) (z w : β) : delta (x, z) (y, w) = delta x y * delta z w := by
+  simp only [delta, Prod.mk.inj_iff, ite_and_one_zero]

@@ -68,3 +68,15 @@ lemma Prob.eq_bernoulli (f : Prob Bool) : f = bernoulli (f.prob true) := by
   ext x; induction x
   · simp only [bernoulli_prob_true (f.prob_mem_Icc _), bool_prob_false_of_true]
   · simp only [bernoulli_prob_true (f.prob_mem_Icc _)]
+
+/-- `bernoulli 0` is false -/
+@[simp] lemma bernoulli_zero : bernoulli 0 = pure false := by
+  ext b
+  induction b
+  all_goals simp [bernoulli, Prob.prob_pure]
+
+/-- `bernoulli 1` is true -/
+@[simp] lemma bernoulli_one : bernoulli 1 = pure true := by
+  ext b
+  induction b
+  all_goals simp [bernoulli, Prob.prob_pure]
