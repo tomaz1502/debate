@@ -16,11 +16,11 @@ variable {α β : Type}
 lemma Finset.sum_eq_sum_zero_off_inter {s0 s1 : Finset α} {g : α → ℝ}
     (h : ∀ x, x ∉ s0 ∨ x ∉ s1 → g x = 0) : s0.sum g = s1.sum g := by
   have e0 : s0.sum g = (s0 ∪ s1).sum g := by
-    apply Finset.sum_subset_zero_on_sdiff (Finset.subset_union_left _ _)
+    apply Finset.sum_subset_zero_on_sdiff Finset.subset_union_left
     · intro x m; apply h; left; rw [Finset.mem_sdiff] at m; exact m.2
     · simp only [Prod.mk.eta, implies_true, Prod.forall, forall_const]
   have e1 : s1.sum g = (s0 ∪ s1).sum g := by
-    apply Finset.sum_subset_zero_on_sdiff (Finset.subset_union_right _ _)
+    apply Finset.sum_subset_zero_on_sdiff Finset.subset_union_right
     · intro x m; apply h; right; rw [Finset.mem_sdiff] at m; exact m.2
     · simp only [Prod.mk.eta, implies_true, Prod.forall, forall_const]
   rw [e0, e1]

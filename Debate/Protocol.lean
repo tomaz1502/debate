@@ -10,6 +10,7 @@ The stochastic oracle doubly-efficient debate protocol
 
 open Classical
 open Comp
+open Mathlib (Vector)
 open Prob
 open Option (some none)
 open scoped Real

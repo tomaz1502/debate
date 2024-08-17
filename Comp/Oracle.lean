@@ -1,3 +1,4 @@
+import Mathlib.Data.Vector.Defs
 import Mathlib.Topology.MetricSpace.Basic
 import Prob.Argmax
 import Prob.Basics
@@ -15,6 +16,7 @@ for some number of steps.  The final bit is the result.
 open Classical
 open Prob
 open Option (some none)
+open Mathlib (Vector)
 open scoped Real
 noncomputable section
 

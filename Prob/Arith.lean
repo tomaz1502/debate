@@ -99,8 +99,8 @@ lemma exp_nonneg {f : Prob α} {g : α → ℝ} (g0 : ∀ x, f.prob x ≠ 0 → 
 lemma exp_mono' {f g : Prob α} (u v : α → ℝ) (h : ∀ x, f.prob x * u x ≤ g.prob x * v x) :
     f.exp u ≤ g.exp v := by
   simp only [exp, Finsupp.sum]
-  rw [Finset.sum_subset (Finset.subset_union_left f.prob.support g.prob.support),
-    Finset.sum_subset (Finset.subset_union_right f.prob.support g.prob.support)]
+  rw [Finset.sum_subset (Finset.subset_union_left (s₁ := f.prob.support) (s₂ := g.prob.support)),
+    Finset.sum_subset (Finset.subset_union_right (s₁ := f.prob.support) (s₂ := g.prob.support))]
   · apply Finset.sum_le_sum; intro _ _; apply h
   · intro x _ m; simp only [Finsupp.mem_support_iff, ne_eq, not_not] at m; simp only [m, zero_smul]
   · intro x _ m; simp only [Finsupp.mem_support_iff, ne_eq, not_not] at m; simp only [m, zero_smul]
@@ -249,7 +249,7 @@ lemma pr_or_le {f : Prob α} (p q : α → Prop) : f.pr (fun x ↦ p x ∨ q x) 
     · simp only [px, qx, or_self, ite_true, le_add_iff_nonneg_right, zero_le_one]
     · simp only [px, qx, or_false, ite_true, ite_false, add_zero, le_refl]
   · by_cases qx : q x
-    . simp only [px, qx, or_true, ite_true, ite_false, zero_add, le_refl]
+    · simp only [px, qx, or_true, ite_true, ite_false, zero_add, le_refl]
     · simp only [px, qx, or_self, ite_false, add_zero, le_refl]
 
 /-- Split a pr into two using another event -/

@@ -136,8 +136,8 @@ lemma exp_congr {f : Prob α} {g h : α → V} (e : ∀ x, f.prob x ≠ 0 → (g
 lemma exp_congr' {f g : Prob α} {u v : α → V} (h : ∀ x, f.prob x • u x = g.prob x • v x) :
     f.exp u = g.exp v := by
   simp only [exp, Finsupp.sum]
-  rw [Finset.sum_subset (Finset.subset_union_left f.prob.support g.prob.support),
-    Finset.sum_subset (Finset.subset_union_right f.prob.support g.prob.support)]
+  rw [Finset.sum_subset (Finset.subset_union_left (s₁ := f.prob.support) (s₂ := g.prob.support)),
+    Finset.sum_subset (Finset.subset_union_right (s₁ := f.prob.support) (s₂ := g.prob.support))]
   · exact Finset.sum_congr rfl (λ _ _ ↦ h _)
   · intro x _ m; simp only [Finsupp.mem_support_iff, not_not] at m; simp only [m, zero_smul]
   · intro x _ m; simp only [Finsupp.mem_support_iff, not_not] at m; simp only [m, zero_smul]

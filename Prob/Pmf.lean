@@ -46,8 +46,8 @@ def PMF.toProb (f : PMF α) (finite : f.support.Finite) : Prob α where
       · apply ENNReal.sub_lt_self; norm_num; norm_num; exact e0'
       · apply ENNReal.lt_add_right; norm_num; exact e0'
     rcases tendsto_atTop_nhds.mp f.property (Ioo (1-e') (1+e')) m isOpen_Ioo with ⟨t,total⟩
-    · specialize total (s ∪ t) (Finset.subset_union_right _ _)
-      rw [←Finset.sum_subset (Finset.subset_union_left _ _)] at total
+    · specialize total (s ∪ t) Finset.subset_union_right
+      rw [←Finset.sum_subset Finset.subset_union_left] at total
       · simp only [Finsupp.sum, Finsupp.ofSupportFinite_coe]
         rw [@Finset.sum_subset _ _ _ s]
         · simp only [ge_iff_le, gt_iff_lt, not_lt, mem_Ioo] at total

@@ -374,9 +374,9 @@ lemma Nat.le_ceil_log2 (n : ℕ) : n ≤ 2 ^ n.ceil_log2 := by
 /-- `Nat.ceil_log2 n` is zero for `n ≤ 1` -/
 @[simp] lemma Nat.ceil_log2_eq_zero_iff (n : ℕ) : n.ceil_log2 = 0 ↔ n ≤ 1 := by
   by_cases n0 : n = 0
-  · simp only [n0]; decide
+  · simp only [ceil_log2, n0, mul_zero, _root_.zero_le, tsub_eq_zero_of_le, log2_zero]
   by_cases n1 : n = 1
-  · simp only [n1]; decide
+  · simp only [ceil_log2, n1, mul_one, reduceSub, le_refl, iff_true]; rfl
   have nle : ¬n ≤ 1 := by omega
   simp only [nle, iff_false, ne_eq]
   have h := Nat.le_ceil_log2 n

@@ -13,6 +13,7 @@ See `Correct.lean` for the summary.
 -/
 
 open Classical
+open Mathlib (Vector)
 open Prob
 open Option (some none)
 open Real (log)

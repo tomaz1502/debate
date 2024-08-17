@@ -103,7 +103,7 @@ lemma hoeffdings_lemma {p : ℝ} (m : p ∈ Icc 0 1) {t : ℝ} (t0 : 0 ≤ t) :
   replace t0 := (Ne.symm tz).lt_of_le t0; clear tz
   rw [←Real.exp_log (L_pos m), Real.exp_le_exp]
   rcases L_taylor m t0 with ⟨a,_,h⟩
-  simp only [L] at h; rw [h]; clear h; norm_num
+  simp only [L] at h; rw [h]; clear h
   generalize hb : p * a.exp = b
   have b0 : 0 ≤ b := by rw [←hb]; exact mul_nonneg m.1 (Real.exp_nonneg _)
   have amgm : (1-p:) * b / (1 - p + b)^2 ≤ 1/4 := mul_div_sq_sum_le p1 b0
