@@ -23,7 +23,7 @@ def Prob.toPmf (f : Prob α) : PMF α where
     have e : f.supp.sum (fun x => ENNReal.ofReal (f.prob x)) = 1 := by
       have t := f.total; simp only [Finsupp.sum] at t
       simp only [Finset.sum_ofReal (fun _ ↦ prob_nonneg _), supp, t, ENNReal.ofReal_one]
-    rw [←e]; apply Finset.hasSum_sum;
+    rw [←e]; apply Finset.hasSum_sum
     intro x m; simp only [mem_iff, not_not] at m; simp only [m, ENNReal.ofReal_zero]
 
 /-- Turn a finitely supported `PMF` into a `Prob` -/

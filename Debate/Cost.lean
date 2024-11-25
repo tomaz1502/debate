@@ -63,7 +63,7 @@ lemma alice_steps_cost (o : DOracle) (bob : Bob) (vera : Vera) (n : ℕ):
       refine exp_le_of_forall_le fun x m ↦ ?_
       induction x
       · simp only [ite_false, Comp.cost_bind, Comp.cost_allow_all, Comp.prob_allow_all,
-          Comp.cost_pure, exp_const, add_zero]
+          Comp.cost_pure, exp_const, add_zero, Bool.false_eq_true]
         zero_cost
       · simp only [ite_true, Comp.cost_sample, Comp.cost_pure, exp_const, le_refl]
 
@@ -85,7 +85,7 @@ lemma bob_steps_cost (o : DOracle) (alice : Alice) (vera : Vera) (n : ℕ):
       refine (exp_eq_zero fun x _ ↦ ?_).le
       induction x
       · simp only [ite_false, Comp.cost_bind, Comp.cost_allow_all, Comp.prob_allow_all,
-          Comp.cost_pure, exp_const, add_zero]
+          Comp.cost_pure, exp_const, add_zero, Bool.false_eq_true]
         zero_cost
       · simp only [ite_true, Comp.cost_sample, Comp.cost_pure, exp_const]
 
@@ -191,7 +191,7 @@ lemma post_stepsV (alice : Alice) (bob : Bob) (vera : Vera) :
         bind_assoc, postV, step]
       apply congr_arg₂ _ rfl ?_; ext p; apply congr_arg₂ _ rfl ?_; ext b
       induction b
-      · simp only [ite_false, Comp.allow_all_pure, pure_bind, postV]
+      · simp only [ite_false, Comp.allow_all_pure, pure_bind, postV, Bool.false_eq_true]
       · simp only [ite_true]
         rw [Comp.allow_all, Comp.allow, bind_assoc]
         simp only [Comp.allow, pure_bind, Comp.sample'_bind, postV]
@@ -214,7 +214,7 @@ theorem vera_debate_cost (o : DOracle) (alice : Alice) (bob : Bob) (t : ℕ):
 
 /-- A calculation used in `vera_fast` -/
 lemma log_mul_le : Real.log 200 * 20000 ≤ 106000 := by
-  rw [← le_div_iff (by norm_num), Real.log_le_iff_le_exp (by norm_num)]
+  rw [← le_div_iff₀ (by norm_num), Real.log_le_iff_le_exp (by norm_num)]
   norm_num
   rw [← Real.exp_one_rpow, div_eq_mul_inv, Real.rpow_mul (by positivity),
     Real.le_rpow_inv_iff_of_pos (by norm_num) (by positivity) (by norm_num)]

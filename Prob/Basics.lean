@@ -1,4 +1,4 @@
-import Mathlib.LinearAlgebra.Finsupp
+import Mathlib.LinearAlgebra.Finsupp.LSum
 import Misc.Finsupp
 import Prob.Defs
 

@@ -56,6 +56,7 @@ lemma mean_bind (f : Prob α) (g : α → Prob ℝ) : (f >>= g).mean = f.exp (fu
   simp only [mean, exp_bind]
 lemma mean_map (f : α → ℝ) (g : Prob α) : (f <$> g).mean = g.exp f := by
   simp only [mean, exp_map, Function.comp, id]
+  rfl
 
 -- Expectation is linear (weak version for independent events, smul version)
 lemma exp_const_smul (s : ℝ) (f : Prob α) (g : α → V) :
@@ -160,6 +161,7 @@ lemma pr_bind {f : Prob α} {g : α → Prob β} (p : β → Prop) :
 /-- (f <$> g).pr works as expected -/
 lemma pr_map {f : α → β} {g : Prob α} (p : β → Prop) : (f <$> g).pr p = g.pr (fun x ↦ p (f x)) := by
   simp only [pr, exp_map, Function.comp]
+  rfl
 
 /-- f.exp g < f.exp h if g ≤ h and g x < h x on at least one nonzero probability x -/
 lemma exp_lt_exp {f : Prob α} {g h : α → ℝ} (le : ∀ x, f.prob x ≠ 0 → g x ≤ h x)
@@ -226,7 +228,7 @@ lemma pr_eq_one {f : Prob α} {p : α → Prop} : f.pr p = 1 ↔ ∀ x, f.prob x
 
 /-- f.pr ¬p = 1 - f.pr p -/
 lemma pr_neg {f : Prob α} {p : α → Prop} : f.pr (fun x ↦ ¬p x) = 1 - f.pr p := by
-  rw [eq_sub_iff_add_eq, ←pr_true]; simp only [pr, ←exp_add]; apply exp_congr;
+  rw [eq_sub_iff_add_eq, ←pr_true]; simp only [pr, ←exp_add]; apply exp_congr
   intro x _; simp only [if_true]; by_cases h : p x
   repeat simp [h]
 lemma pr_neg' {f : Prob α} {p : α → Prop} : f.pr p = 1 - f.pr (fun x ↦ ¬p x) := by
@@ -255,13 +257,13 @@ lemma pr_or_le {f : Prob α} (p q : α → Prop) : f.pr (fun x ↦ p x ∨ q x) 
 /-- Split a pr into two using another event -/
 lemma pr_eq_add_of_cut {f : Prob α} {p : α → Prop} (q : α → Prop) :
     f.pr p = f.pr (fun x ↦ p x ∧ q x) + f.pr (fun x ↦ p x ∧ ¬q x) := by
-  simp only [pr, ←exp_add]; apply exp_congr; intro x _; by_cases px : p x;
+  simp only [pr, ←exp_add]; apply exp_congr; intro x _; by_cases px : p x
   repeat { by_cases qx : q x; repeat simp [px, qx] }
 
 /-- Markov's inequality -/
 lemma markov' (f : Prob α) (g : α → ℝ) (f0 : ∀ x, f.prob x ≠ 0 → 0 ≤ g x) {a : ℝ} (a0 : 0 < a) :
     f.pr (fun x ↦ a ≤ g x) ≤ f.exp g / a := by
-  simp only [le_div_iff a0, pr, mean, ←exp_mul_const, ite_mul, one_mul, zero_mul, id];
+  simp only [le_div_iff₀ a0, pr, mean, ←exp_mul_const, ite_mul, one_mul, zero_mul, id]
   apply exp_mono; intro x m; split; assumption; exact f0 _ m
 lemma markov (f : Prob ℝ) (f0 : ∀ x, f.prob x ≠ 0 → 0 ≤ x) {a : ℝ} (a0 : 0 < a) :
     f.pr (fun x ↦ a ≤ x) ≤ f.mean / a :=

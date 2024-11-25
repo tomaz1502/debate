@@ -88,7 +88,7 @@ lemma L_taylor (m : p ∈ Icc 0 1) (t0 : 0 < t) :
 lemma mul_div_sq_sum_le {x y : ℝ} (x0 : 0 ≤ x) (y0 : 0 ≤ y) : x * y / (x + y)^2 ≤ 1/4 := by
   by_cases s0 : x + y = 0; simp only [s0, zero_pow]; norm_num
   replace s0 : 0 < x + y := (Ne.symm s0).lt_of_le (add_nonneg x0 y0)
-  rw [div_le_iff (pow_pos s0 2), one_div, mul_comm 4⁻¹, ←div_eq_mul_inv]
+  rw [div_le_iff₀ (pow_pos s0 2), one_div, mul_comm 4⁻¹, ←div_eq_mul_inv]
   have h : (0:ℝ) ≤ (x - y)^2 := sq_nonneg _
   simp only [pow_two, mul_add, add_mul] at h ⊢
   linarith
@@ -152,18 +152,18 @@ lemma chernoff_count_le (f : Prob Bool) (n : ℕ) {t : ℝ} (t0 : 0 ≤ t) :
     have le := hoeffdings_lemma' f (le_of_lt s0)
     generalize hz : f.exp (fun x ↦ (s * bif x then 1 else 0).exp) = z; simp only [hz] at le ⊢
     have z0 : 0 ≤ z := by rw [←hz]; apply exp_nonneg; intro x _; apply Real.exp_nonneg
-    rw [div_le_iff (Real.exp_pos _), ←Real.exp_add]
-    apply le_trans (pow_le_pow_left z0 le n); clear le z0 hz z
+    rw [div_le_iff₀ (Real.exp_pos _), ←Real.exp_add]
+    apply le_trans (pow_le_pow_left₀ z0 le n); clear le z0 hz z
     simp only [hp, ←Real.rpow_natCast, ←Real.exp_mul]
     simp only [Real.rpow_natCast, Real.exp_le_exp, mul_comm _ (n:ℝ), mul_add, mul_div, ←add_assoc,
       ←mul_assoc]
-    simp only [add_comm _ (s*t), ←add_assoc]; simp only [neg_mul, add_right_neg, zero_add]
+    simp only [add_comm _ (s*t), ←add_assoc]; simp only [neg_mul, add_neg_cancel, zero_add]
     simp only [add_comm (_ / _)]; apply add_le_add_right; rfl
   apply le_trans (h (4*t/n) (by positivity)); simp only [Real.exp_le_exp]; apply le_of_eq
   simp only [Nat.cast_ofNat, Nat.cast_pow, neg_mul, div_pow, mul_pow, ←mul_assoc, mul_div, pow_two,
     div_eq_mul_inv, mul_inv, Nat.cast_mul, mul_pow, pow_two]
   ring_nf
-  rw [pow_two (n:ℝ)⁻¹, ←mul_assoc, mul_assoc _ (n:ℝ), mul_inv_cancel (Nat.cast_ne_zero.mpr nz),
+  rw [pow_two (n:ℝ)⁻¹, ←mul_assoc, mul_assoc _ (n:ℝ), mul_inv_cancel₀ (Nat.cast_ne_zero.mpr nz),
     mul_one]
   ring
 
@@ -198,7 +198,7 @@ lemma chernoff_estimate_abs_le (f : Prob Bool) (n : ℕ) {t : ℝ} (t0 : 0 ≤ t
   simp only [estimate, pr_map]
   have b := chernoff_count_abs_le f n (mul_nonneg (Nat.cast_nonneg n) t0)
   simp only [mul_pow, div_eq_inv_mul, ←mul_assoc, pow_two (n:ℝ)] at b
-  rw [mul_comm _ (n:ℝ)] at b; simp only [←mul_assoc, mul_inv_cancel n0, one_mul] at b
+  rw [mul_comm _ (n:ℝ)] at b; simp only [←mul_assoc, mul_inv_cancel₀ n0, one_mul] at b
   apply le_trans _ b; apply le_of_eq
-  apply pr_congr; intro x _; simp only [mul_comm _ t, ←le_div_iff np]
+  apply pr_congr; intro x _; simp only [mul_comm _ t, ←le_div_iff₀ np]
   nth_rewrite 3 [←abs_of_pos np]; simp only [←abs_div, sub_div]; field_simp [n0]

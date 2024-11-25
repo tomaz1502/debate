@@ -48,7 +48,7 @@ lemma alice_pr_le (o : DOracle) (i : OracleId) (e0 : 0 < e) (q0 : 0 < q) (y : Ve
       (sq_nonneg _)
   refine le_trans (mul_le_mul_of_nonneg_left (Real.exp_le_exp.mpr le) (by norm_num)) ?_; clear le
   simp only [samples', div_eq_inv_mul, ←mul_assoc, mul_inv]; norm_num
-  simp only [mul_comm _ (e^2), ←mul_assoc, mul_inv_cancel (pow_ne_zero _ (ne_of_gt e0)), one_mul]
+  simp only [mul_comm _ (e^2), ←mul_assoc, mul_inv_cancel₀ (pow_ne_zero _ (ne_of_gt e0)), one_mul]
   rw [Real.exp_log]; ring_nf; rfl; positivity
 
 /-- Honest Alice has error ≤ e with probability ≥ 1 - q
@@ -347,11 +347,12 @@ lemma evil_bobs_lies' (o : DOracle) (eve : Bob) (cs : c < s) (v0 : 0 < v)
     (bobs o eve (vera c s v) p y).cond (fun r ↦ r = some false) (fun r ↦ r.isSome) ≤ v := by
   have v0' := le_of_lt v0
   induction' n with n h
-  · simp only [bobs, cond_pure, Option.isSome_none, Bool.false_eq_true, and_self, ↓reduceIte, v0']
+  · simp only [bobs, cond_pure, Option.isSome_none, Bool.false_eq_true, and_self, ↓reduceIte, v0',
+      and_false]
   · simp only [close_succ, Vector.eq_cons_iff] at py
     apply le_trans (cond_bind_le_of_cut (fun r ↦ r.isSome)); apply max_le
     · refine le_trans (cond_bind_le_first (fun r ↦ r = some false)
-        (fun r ↦ r.isSome) (fun r ↦ r = some false) (fun r ↦ r.isSome) ?_ ?_) ?_;
+        (fun r ↦ r.isSome) (fun r ↦ r = some false) (fun r ↦ r.isSome) ?_ ?_) ?_
       · intro r s pr ps r0 s0 _; match r with
         | none => simp only [Option.isSome_none, Bool.false_eq_true] at r0
         | some false => rfl
@@ -369,9 +370,12 @@ lemma evil_bobs_lies' (o : DOracle) (eve : Bob) (cs : c < s) (v0 : 0 < v)
       | none =>
           simp only; apply cond_bind_le_of_forall_le v0'
           intro b _; match b with
-          | true => simp [cond_pure, v0']
+          | true =>
+            simp only [Comp.prob', Nat.add_one_sub_one, reduceIte, Prob.map_eq, bind_const, v0',
+              cond_pure, reduceCtorEq, Option.isSome_none, Bool.false_eq_true, and_self, ↓reduceIte]
           | false =>
-            simp only [if_false]; rw [cond_eq_pr]
+            simp only [if_false, Bool.false_eq_true]
+            rw [cond_eq_pr]
             · refine le_trans ?_ (bob_complete o VeraId cs v0 py.1)
               simp only [pr_bind, pr_pure, Option.some_inj, exp_eq_prob]; rfl
             · simp only [pr_eq_one, prob_bind]
@@ -379,7 +383,7 @@ lemma evil_bobs_lies' (o : DOracle) (eve : Bob) (cs : c < s) (v0 : 0 < v)
               | some _ => simp only [Option.isSome]
               | none =>
                 contrapose h; clear h; simp only [not_not]; apply exp_eq_zero
-                intro x _; simp only [prob_pure, if_false]
+                intro x _; simp only [prob_pure, reduceCtorEq, ↓reduceIte]
 
 /-- If Alice is good, the probability of false is low -/
 lemma evil_bobs_lies (o : DOracle) (eve : Bob) (cs : c < s) (v0 : 0 < v)
@@ -467,7 +471,9 @@ lemma bobs_safe (o : DOracle) (cs : c < s) (sb : s < b) (q0 : 0 < q) (v0 : 0 < v
       some.injEq, Bool.true_eq_false, Finset.mem_singleton, or_self, not_false_eq_true,
       Finset.sum_insert, mul_zero, mul_one, Finset.sum_singleton, zero_add, Nat.succ_sub_one,
       Comp.prob', prob_pure, Bool.false_eq_true, ↓reduceIte, zero_mul, add_zero, prob_bind,
-      smul_eq_mul] at h ⊢
+      smul_eq_mul, Finset.mem_insert, some.injEq, Bool.true_eq_false, Finset.mem_singleton,
+      reduceCtorEq, or_self, not_false_eq_true, Finset.sum_insert, mul_zero, mul_one,
+      Finset.sum_singleton, zero_add] at h ⊢
     generalize hbs : bobs o (bob s b q) (vera c s v) p.tail y.tail = bs
     simp only [hbs] at h
     generalize hbn : (bob s b q n y.tail p.head).prob' o = bn
@@ -487,16 +493,19 @@ lemma bobs_safe (o : DOracle) (cs : c < s) (sb : s < b) (q0 : 0 < q) (v0 : 0 < v
               simp only [Nat.succ_sub_one] at bc
               rw [←hbn, pr_eq_prob, bool_prob_true_of_false, bob]; linarith
             · intro x _ xe
-              simp only [xe, if_true, if_false, zero_add, one_mul, exp_const, le_refl]
+              simp only [Comp.prob', Nat.add_one_sub_one, xe, ↓reduceIte, reduceCtorEq, one_mul,
+                zero_add, exp_const, le_refl]
             · intro _ _ _; apply exp_nonneg; intro _ _; apply add_nonneg ite_one_zero_nonneg
               apply mul_nonneg ite_one_zero_nonneg; linarith
           · apply le_exp_of_forall_le; intro r _; induction r
             · trans 1 - v; apply mul_le_of_le_one_right; linarith; linarith
               have vs := bob_sound o VeraId cs v0 (le_of_lt (not_le.mp ps))
-              simp only [if_false, Option.some_inj, zero_mul, add_zero, @eq_comm _ false,
-                exp_eq_prob, Nat.succ_sub_one, vera, bool_prob_false_of_true] at vs ⊢
+              simp only [Comp.prob', Nat.add_one_sub_one, vera, @eq_comm _ false,
+                Bool.true_eq_false, ↓reduceIte, some.injEq, reduceCtorEq, zero_mul, add_zero,
+                exp_eq_prob, bool_prob_false_of_true, tsub_le_iff_right, ge_iff_le] at vs ⊢
               linarith
-            · simp only [if_true, one_mul, if_false, zero_add, exp_const]
+            · simp only [Comp.prob', Nat.add_one_sub_one, ↓reduceIte, reduceCtorEq, one_mul,
+                zero_add, exp_const]
               apply mul_le_of_le_one_right; linarith; linarith
         · simp only [exp_add, exp_mul_const, Nat.succ_sub_one, ← hbn]
           convert le_refl _
@@ -514,9 +523,10 @@ lemma bobs_catches (o : DOracle) (cs : c < s) (sb : s < b) (q0 : 0 < q) (v0 : 0 
         ite_false, mul_zero, ite_true, mul_one, Finset.sum_singleton, zero_add, ge_iff_le,
         vera_score] at safe ⊢
       generalize hbs : bobs o (bob s b q) (vera c s v) p.tail y.tail = bs
-      simp only [hbs, Finset.mem_insert, some.injEq, Bool.true_eq_false, Finset.mem_singleton,
-        or_self, not_false_eq_true, Finset.sum_insert, mul_zero, mul_one, Finset.sum_singleton,
-        zero_add, Comp.prob', pr_pure, ↓reduceIte, pr_bind, smul_eq_mul] at safe ⊢
+      simp only [hbs, smul_eq_mul, Finset.mem_insert, some.injEq, Bool.true_eq_false,
+        Finset.mem_singleton, reduceCtorEq, or_self, not_false_eq_true, Finset.sum_insert, mul_zero,
+        mul_one, Finset.sum_singleton, zero_add, Comp.prob', bind_pure_comp, pr_pure, ↓reduceIte,
+        pr_bind] at safe ⊢
       trans (bs.prob (some false) + bs.prob none * (1 - v)) * (1 - q)
       · refine le_trans ?_ (mul_le_mul_of_nonneg_right safe (by linarith))
         rw [mul_assoc, ←pow_succ]
@@ -535,10 +545,13 @@ lemma bobs_catches (o : DOracle) (cs : c < s) (sb : s < b) (q0 : 0 < q) (v0 : 0 
           · intro x _ x0
             have vs := bob_sound o VeraId cs v0 (le_of_lt (lt_trans sb pb))
             simp only [x0, if_false, Option.some_inj, exp_eq_prob, bool_prob_false_of_true, vera,
-              Nat.succ_sub_one, Comp.prob'] at vs ⊢
+              Nat.succ_sub_one, Comp.prob', Bool.false_eq_true, Prob.map_eq, Prob.pr_bind,
+              Prob.pr_pure] at vs ⊢
             linarith
           · intro _ _ t
-            simp only [Bool.not_eq_false] at t; simp only [t, if_true, if_false, exp_const, le_refl]
+            simp only [Bool.not_eq_false] at t
+            simp only [t, if_true, if_false, exp_const, le_refl, Prob.map_eq, Prob.bind_const,
+              Prob.pr_pure, reduceCtorEq, ↓reduceIte, le_refl]
     · specialize h pbn
       refine le_trans ?_ (le_pr_bind_of_cut _ (1-q) h ?_ (by linarith))
       · rw [mul_assoc, pow_succ]
@@ -564,7 +577,9 @@ theorem soundness' (o : DOracle) (L : o.lipschitz t k) (eve : Alice)
       simp only [@exp_fintype (Option Bool), option_bool_univ, vera_score, Finset.mem_insert,
         some.injEq, Bool.true_eq_false, Finset.mem_singleton, or_self, not_false_eq_true,
         Finset.sum_insert, mul_zero, mul_one, Finset.sum_singleton, zero_add, extract, h, mul_ite,
-        ↓reduceIte, smul_eq_mul] at safe ⊢
+        ↓reduceIte, smul_eq_mul, Finset.mem_insert, some.injEq, Bool.true_eq_false, Finset.mem_singleton,
+        reduceCtorEq, or_self, not_false_eq_true, Finset.sum_insert, mul_zero, mul_one,
+        Finset.sum_singleton, zero_add, ↓reduceIte, ge_iff_le] at safe ⊢
       exact le_trans safe (add_le_add_left (mul_le_of_le_one_right (prob_nonneg _) (by linarith)) _)
   · apply mul_nonneg; linarith; apply pow_nonneg; linarith
 
@@ -672,8 +687,8 @@ def defaults (k : ℝ) (t : ℕ) (k0 : 0 < k) : Params (2/3) (3/5) k t where
   b := 5/(100*k)
   q := 1/(100*(t+1))
   k0 := k0
-  cs := by rw [div_lt_div_right]; norm_num; positivity
-  sb := by rw [div_lt_div_right]; norm_num; positivity
+  cs := by rw [div_lt_div_iff_of_pos_right]; norm_num; positivity
+  sb := by rw [div_lt_div_iff_of_pos_right]; norm_num; positivity
   q1 := by
     rw [div_le_one]; apply one_le_mul_of_one_le_of_one_le (by norm_num)
     simp only [le_add_iff_nonneg_left, Nat.cast_nonneg]; positivity
@@ -682,7 +697,7 @@ def defaults (k : ℝ) (t : ℕ) (k0 : 0 < k) : Params (2/3) (3/5) k t where
     rw [←div_div]; apply div_le_self (by norm_num)
     simp only [le_add_iff_nonneg_left, Nat.cast_nonneg]
   bw := by
-    simp only [div_eq_mul_inv, mul_inv, ←mul_assoc, mul_comm _ k⁻¹, inv_mul_cancel (ne_of_gt k0)]
+    simp only [div_eq_mul_inv, mul_inv, ←mul_assoc, mul_comm _ k⁻¹, inv_mul_cancel₀ (ne_of_gt k0)]
     norm_num
   complete := by
     simp only [←mul_div_assoc, mul_one, mul_comm _ k, ←div_div, div_self (ne_of_gt k0)]

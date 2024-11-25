@@ -1,5 +1,6 @@
 import Comp.Basic
 import Comp.Lower
+import Misc.If
 
 /-!
 # Sorting has `Θ(n log n)` query complexity
@@ -52,6 +53,7 @@ def Sorts (f : List α → SComp α (List α)) : Prop :=
 ### Oracle and permutation machinery
 -/
 
+section Oracles
 variable [Fintype α]
 
 /-- Turn a permutation of `Fin.list n` into a valid oracle -/
@@ -155,11 +157,12 @@ lemma sort_eq {π : α ≃ Fin (Fintype.card α)} {s t : List α} (d : s.Nodup)
     intro x y xy
     simp only [oracle, Equiv.apply_symm_apply, xy.le, decide_True, Prob.argmax_pure]
 
+omit [Fintype α] in
 lemma List.indexOf_map (l : List α) (f : α ≃ β) (x : β) :
     (l.map f).indexOf x = l.indexOf (f.symm x) := by
   induction' l with y l h
   · simp
-  · simp [List.indexOf_cons, h, Equiv.eq_symm_apply, beq_eq_decide]
+  · simp [List.indexOf_cons, h, Equiv.eq_symm_apply, beq_eq_decide, bif_eq_if]
 
 /-- `sort_to_oracle` is correct -/
 lemma sort_to_oracle_eq {π : α ≃ Fin (Fintype.card α)} {s t : List α} (d : s.Nodup)
@@ -218,58 +221,58 @@ theorem Sorts.le_cost' (s : Sorts f) : ∃ (o : SOracle α) (s : List α),
 We define our `merge` to match `List.mergeSort`, so that we reuse the existing correctness proof.
 -/
 
-def merge (s t : List α) : SComp α (List α) := loop s t [] where
-  loop : List α → List α → List α → SComp α (List α)
-    | [], x, p => return p.reverseAux x
-    | x, [], p => return p.reverseAux x
-    | (a :: l), (b :: r), p => do
-      bif ← (Comp.query () (a,b)).allow_all then loop l (b :: r) (a :: p)
-      else loop (a :: l) r (b :: p)
+def merge (xs ys : List α) : SComp α (List α) := do
+  match xs, ys with
+  | [], ys => return ys
+  | xs, [] => return xs
+  | x :: xs, y :: ys =>
+    if ← (Comp.query () (x,y)).allow_all then
+      return x :: (← merge xs (y :: ys))
+    else
+      return y :: (← merge (x :: xs) ys)
 
 def mergeSort : List α → SComp α (List α)
   | [] => pure []
   | [a] => pure [a]
   | a :: b :: l => do
-    let s := (a :: b :: l).split
-    have := List.length_split_fst_le l
-    have := List.length_split_snd_le l
+    let s := List.splitInTwo ⟨a :: b :: l, rfl⟩
     merge (← mergeSort s.1) (← mergeSort s.2)
   termination_by s => s.length
 
-/-- `merge.loop` is `List.merge.loop` -/
-lemma merge_loop_eq (o : SOracle α) (d : o.Deterministic) : (s t r : List α) →
-    (merge.loop s t r).prob (fun _ ↦ o) = pure (List.merge.loop (fun x y ↦ (o (x,y)).argmax) s t r)
-  | [], _, _ => by simp only [Comp.prob', merge.loop, Comp.prob_pure, List.merge.loop]
-  | (_ :: _), [], _ => by simp only [Comp.prob', merge.loop, Comp.prob_pure, List.merge.loop]
-  | (a :: l), (b :: r), _ => by
-    simp only [Comp.prob', merge.loop, Comp.prob_bind, Comp.prob_allow_all, Comp.prob_query,
-      List.merge.loop]
+omit [Fintype α] in
+/-- `merge` is `List.merge` -/
+lemma merge_eq (o : SOracle α) (d : o.Deterministic) : (s t : List α) →
+    (merge s t).prob (fun _ ↦ o) = pure (List.merge s t (fun x y ↦ (o (x,y)).argmax))
+  | [], _ => by simp only [Comp.prob', merge, Comp.prob_pure, List.merge]
+  | (_ :: _), [] => by simp only [Comp.prob', merge, Comp.prob_pure, List.merge]
+  | (a :: l), (b :: r) => by
+    simp only [Comp.prob', merge, Comp.prob_bind, Comp.prob_allow_all, Comp.prob_query, List.merge]
     rw [d.eq_pure (a,b)]
     simp only [pure_bind, Prob.argmax_pure]
     induction' (o (a, b)).argmax with b
-    · simp only [cond_false]; apply merge_loop_eq _ d
-    · simp only [cond_true]; apply merge_loop_eq _ d
+    · simp only [Bool.false_eq_true, ↓reduceIte, bind_pure_comp, Comp.prob_map, map_pure,
+        merge_eq o d (a :: l) r]
+    · simp only [↓reduceIte, bind_pure_comp, Comp.prob_map, merge_eq o d l (b :: r), map_pure]
 
-/-- `merge` is `List.merge` -/
-lemma merge_eq (o : SOracle α) (d : o.Deterministic) (s t : List α) :
-    (merge s t).prob (fun _ ↦ o) = pure (List.merge (fun x y ↦ (o (x,y)).argmax) s t) := by
-  apply merge_loop_eq _ d
-
+omit [Fintype α] in
 /-- `mergeSort` is `List.mergeSort` -/
 lemma mergeSort_eq (o : SOracle α) (d : o.Deterministic) : (s : List α) →
-    (mergeSort s).prob (fun _ ↦ o) = pure (List.mergeSort (fun x y ↦ (o (x,y)).argmax) s)
-  | [] => by simp [mergeSort]
-  | [a] => by simp [mergeSort]
+    (mergeSort s).prob (fun _ ↦ o) = pure (List.mergeSort s (fun x y ↦ (o (x,y)).argmax))
+  | [] => by simp only [mergeSort, Comp.prob_pure, List.mergeSort_nil]
+  | [a] => by simp only [mergeSort, Comp.prob_pure, List.mergeSort_singleton]
   | a :: b :: l => by
-    simp only [mergeSort, List.mergeSort]
-    set s := a :: b :: l
-    have := List.length_split_fst_le l
-    have := List.length_split_snd_le l
-    simp only [Comp.prob', Comp.prob_bind, mergeSort_eq _ d s.split.1, mergeSort_eq _ d s.split.2]
-    simp only [List.split, merge_eq _ d, List.merge, pure_bind, Bool.decide_eq_true]
+    simp only [mergeSort, List.length_cons, List.splitInTwo_fst, List.splitInTwo_snd,
+      Comp.prob_bind, List.mergeSort]
+    --set t := List.splitInTwo ⟨a :: b :: l, rfl⟩
+    simp only [mergeSort_eq o d ((List.take ((l.length + 1 + 1 + 1) / 2) (a :: b :: l))),
+      mergeSort_eq o d ((List.drop ((l.length + 1 + 1 + 1) / 2) (a :: b :: l))),
+      pure_bind, merge_eq o d]
   termination_by s => s.length
-  decreasing_by all_goals simp_wf; omega
+  decreasing_by
+  · simp only [List.length_take, List.length_cons, inf_lt_right, not_le]; omega
+  · simp only [List.length_drop, List.length_cons, or_true, or_self, true_and]; omega
 
+omit [Fintype α]
 /-- `mergeSort` sorts -/
 lemma sorts_mergeSort : Sorts (mergeSort (α := α)) := by
   intro o s t v pt
@@ -277,71 +280,52 @@ lemma sorts_mergeSort : Sorts (mergeSort (α := α)) := by
     one_ne_zero, imp_false, Decidable.not_not] at pt
   rw [pt]
   exact {
-    perm := List.Perm.symm (List.perm_mergeSort _ _)
+    perm := List.Perm.symm (List.mergeSort_perm _ _)
     sorted := by
-      refine @List.sorted_mergeSort _ _ _ ⟨?_⟩ ⟨?_⟩ s
-      · intro _ _; apply v.total
+      apply List.sorted_mergeSort
       · intro _ _ _; apply v.trans
+      · intro _ _; simp only [Bool.or_eq_true]; apply v.total
   }
 
-/-- `merge.loop` is `O(n)` -/
-lemma cost_merge_loop_le (o : SOracle α) : (s t r : List α) →
-    (merge.loop s t r).cost (fun _ ↦ o) () ≤ s.length + t.length
-  | [], _, _ => by simp [merge.loop, List.merge.loop]
-  | (_ :: _), [], _ => by simp [merge.loop, List.merge.loop]; positivity
-  | (a :: l), (b :: r), _ => by
-    simp only [Comp.cost', merge.loop, Comp.cost_bind, Comp.cost_allow_all, Comp.cost_query,
+/-- `merge` is `O(n)` -/
+lemma cost_merge_le (o : SOracle α) : (s t : List α) →
+    (merge s t).cost (fun _ ↦ o) () ≤ s.length + t.length
+  | [], _ => by simp [merge, List.merge]
+  | (_ :: _), [] => by simp [merge, List.merge]; positivity
+  | (a :: l), (b :: r) => by
+    simp only [Comp.cost', merge, Comp.cost_bind, Comp.cost_allow_all, Comp.cost_query,
       Comp.prob_allow_all, Comp.prob_query, List.length_cons, Nat.succ_eq_add_one, Nat.cast_min,
       Nat.cast_add, Nat.cast_one, min_add_add_right, add_comm 1, add_comm (1 : ℝ),
       add_le_add_iff_right, ← add_assoc]
     refine Prob.exp_le_of_forall_le fun b _ ↦ ?_
     induction' b with b
-    · simp only [cond_false]
-      refine le_trans (cost_merge_loop_le o _ _ _) ?_
+    · simp only [Bool.false_eq_true, ↓reduceIte, bind_pure_comp, Comp.cost_map]
+      refine le_trans (cost_merge_le o _ _) ?_
       simp only [List.length_cons, Nat.succ_eq_add_one, Nat.cast_add, Nat.cast_one, le_refl]
-    · simp only [cond_true]
-      refine le_trans (cost_merge_loop_le o _ _ _) ?_
+    · simp only [↓reduceIte, bind_pure_comp, Comp.cost_map]
+      refine le_trans (cost_merge_le o _ _) ?_
       simp only [List.length_cons, Nat.succ_eq_add_one, Nat.cast_add, Nat.cast_one]
       linarith
 
-/-- `merge` is `O(n)` -/
-lemma cost_merge_le (o : SOracle α) (s t : List α) :
-    (merge s t).cost (fun _ ↦ o) () ≤ s.length + t.length :=
-  cost_merge_loop_le o s t []
-
-/-- Exact lengths after `List.split` -/
-lemma List.length_split_eq (s : List α) :
-    s.split.1.length = (s.length + 1) / 2 ∧ s.split.2.length = s.length / 2 := by
-  induction' s with a s h
-  · simp only [split, length_nil, zero_add, Nat.reduceDiv, Nat.zero_div, and_self]
-  · simp only [split, length_cons, h, Nat.succ_eq_add_one, and_true]; omega
-
-/-- `merge.loop` preserves `length` -/
-lemma length_merge_loop (o : SOracle α) : (s t r x : List α) →
-    (px : ((merge.loop s t r).prob (fun _ ↦ o)).prob x ≠ 0) →
-    x.length = s.length + t.length + r.length
-  | [], t, r, x, px => by
-    simp only [merge.loop, Comp.prob_pure, Prob.prob_pure, ne_eq, ite_eq_right_iff, one_ne_zero,
+/-- `merge` preserves `length` -/
+lemma length_merge (o : SOracle α) : (s t x : List α) →
+    (px : ((merge s t).prob (fun _ ↦ o)).prob x ≠ 0) → x.length = s.length + t.length
+  | [], t, x, px => by
+    simp only [merge, Comp.prob_pure, Prob.prob_pure, ne_eq, ite_eq_right_iff, one_ne_zero,
       imp_false, not_not, List.reverseAux_eq] at px
     simp only [px, List.length_append, List.length_reverse, List.length_nil, zero_add]
-    ring
-  | (_ :: _), [], _, _, px => by
-    simp only [merge.loop, List.reverseAux_eq, Comp.prob_pure, Prob.prob_pure, ne_eq,
+  | (_ :: _), [], _, px => by
+    simp only [merge, List.reverseAux_eq, Comp.prob_pure, Prob.prob_pure, ne_eq,
       ite_eq_right_iff, one_ne_zero, imp_false, not_not] at px
     simp only [px, List.length_append, List.length_reverse, List.length_cons, Nat.succ_eq_add_one,
       List.length_nil, add_zero]
-    omega
-  | (a :: s), (b :: t), r, x, px => by
-    simp only [merge.loop, Comp.prob_bind, Comp.prob_allow_all, Comp.prob_query,
-      Prob.prob_bind_ne_zero, Bool.exists_bool, cond_false, cond_true] at px
-    rcases px with ⟨_, px⟩ | ⟨_, px⟩
-    all_goals simp only [length_merge_loop _ _ _ _ _ px, List.length_cons]; omega
-
-/-- `merge` preserves `length` -/
-lemma length_merge (o : SOracle α) (s t x : List α)
-    (px : ((merge s t).prob (fun _ ↦ o)).prob x ≠ 0) :
-    x.length = s.length + t.length := by
-  simp only [length_merge_loop o s t [] x px, List.length_nil, add_zero]
+  | (a :: s), (b :: t), x, px => by
+    simp only [merge, Comp.prob_bind, Comp.prob_allow_all, Comp.prob_query, if_false, if_true,
+      Prob.prob_bind_ne_zero, Bool.exists_bool, cond_false, cond_true, Bool.false_eq_true,
+      Comp.prob_pure, Prob.prob_pure, apply_ite (fun x : ℝ ↦ x ≠ 0), ne_eq, not_true, not_false_iff,
+      one_ne_zero, if_false_right, and_true] at px
+    rcases px with ⟨_, _, px, e⟩ | ⟨_, _, px, e⟩
+    all_goals simp only [e, length_merge _ _ _ _ px, List.length_cons]; omega
 
 /-- `mergeSort` preserves `length` -/
 lemma length_mergeSort (o : SOracle α) : (s x : List α) →
@@ -352,12 +336,11 @@ lemma length_mergeSort (o : SOracle α) : (s x : List α) →
   | a :: b :: l => by
     simp only [mergeSort, List.mergeSort, Prob.prob_bind_ne_zero, Comp.prob_bind]
     intro x ⟨x1, px1, x2, px2, pm⟩
-    set s := a :: b :: l
-    have := List.length_split_fst_le l
-    have := List.length_split_snd_le l
-    simp only [Comp.prob', Comp.prob_bind, length_mergeSort o s.split.1 x1 px1,
-      length_mergeSort o s.split.2 x2 px2, length_merge o _ _ _ pm, List.length_split_eq]
-    omega
+    simp only [Comp.prob', Comp.prob_bind, length_mergeSort o _ x1 px1, length_mergeSort o _ x2 px2,
+      length_merge o _ _ _ pm, List.length_cons, List.splitInTwo_fst, List.length_take,
+      List.splitInTwo_snd, List.length_drop]
+    rw [min_eq_left]
+    all_goals omega
   termination_by s => s.length
 
 /-- `log2 n`, rounding up -/
@@ -376,7 +359,9 @@ lemma Nat.le_ceil_log2 (n : ℕ) : n ≤ 2 ^ n.ceil_log2 := by
   by_cases n0 : n = 0
   · simp only [ceil_log2, n0, mul_zero, _root_.zero_le, tsub_eq_zero_of_le, log2_zero]
   by_cases n1 : n = 1
-  · simp only [ceil_log2, n1, mul_one, reduceSub, le_refl, iff_true]; rfl
+  · simp only [ceil_log2, n1, mul_one, reduceSub, le_refl, iff_true]
+    unfold log2
+    decide
   have nle : ¬n ≤ 1 := by omega
   simp only [nle, iff_false, ne_eq]
   have h := Nat.le_ceil_log2 n
@@ -456,21 +441,23 @@ lemma cost_mergeSort_le (o : SOracle α) (s : List α) :
     · simp only [List.length_singleton] at hn
       simp [mergeSort,  ← hn]
     · simp only [List.length_cons, Nat.succ_eq_add_one] at hn
-      simp only [Comp.cost', mergeSort, List.split, Comp.cost_bind, Prob.exp_add, Prob.exp_const]
-      refine le_trans (add_le_add (h (a :: s.split.1).length ?_ (a :: s.split.1) rfl)
-          (add_le_add (h (b :: s.split.2).length ?_ (b :: s.split.2) rfl)
+      simp only [Comp.cost', mergeSort, Comp.cost_bind, List.splitInTwo, Prob.exp_add,
+        Prob.exp_const]
+      refine le_trans (add_le_add (h _ ?_ _ rfl) (add_le_add (h _ ?_ _ rfl)
           (Prob.exp_le_of_forall_le fun x px ↦ Prob.exp_le_of_forall_le (b := n) fun y py ↦ ?_))) ?_
-      · simp only [List.length_cons, s.length_split_eq, ← hn]
+      · simp only [List.length_cons, List.splitAt_eq, List.length_take, ← hn, inf_lt_right, not_le]
         omega
-      · simp only [List.length_cons, s.length_split_eq]
+      · simp only [List.length_cons, List.splitAt_eq, List.length_drop]
         omega
       · refine le_trans (cost_merge_le _ _ _) ?_
-        simp only [length_mergeSort _ _ _ px, List.length_cons, List.length_split_eq,
-          length_mergeSort _ _ _ py, ← Nat.cast_add, Nat.cast_le]
+        simp only [length_mergeSort _ _ _ px, List.length_cons, List.splitAt_eq, List.length_take,
+          Nat.cast_min, length_mergeSort _ _ _ py, List.length_drop, ← Nat.cast_min, ← Nat.cast_add,
+          Nat.cast_le]
         omega
       · clear d
-        simp only [List.length_cons, List.length_split_eq, Nat.succ_eq_add_one,
-          (by omega : s.length = n - 2), (by omega : (n - 2) / 2 + 1 = n / 2),
-          (by omega : (n - 2 + 1) / 2 + 1 = (n + 1) / 2)]
-        simp only [← Nat.cast_mul, ← Nat.cast_add, Nat.cast_le]
-        exact mul_log_le n (by omega)
+        simp only [← Nat.cast_add, Nat.cast_le]
+        convert mul_log_le n (by omega)
+        · simp only [List.length_cons, List.splitAt_eq, List.length_take]
+          omega
+        · simp only [List.length_cons, List.splitAt_eq, List.length_drop]
+          omega

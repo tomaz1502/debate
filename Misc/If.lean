@@ -4,6 +4,8 @@ import Mathlib.Data.Real.Basic
 # A few `if` utilities
 -/
 
+variable {α : Type*}
+
 /-- ↑x ≤ ↑y ↔ y → x -/
 lemma ite_le_ite_iff (x y : Prop) {dx : Decidable x} {dy : Decidable y} :
     (@ite _ x dx (1:ℝ) 0) ≤ (@ite _ y dy 1 0) ↔ x → y := by
@@ -26,6 +28,12 @@ lemma ite_and_one_zero (x y : Prop) {d : Decidable (x ∧ y)} :
 
 lemma ite_one_zero_nonneg {x : Prop} {d : Decidable x} : 0 ≤ @ite _ x d (1:ℝ) 0 := by
   split_ifs; repeat norm_num
+
+/-- Change `bif` to `if` -/
+lemma bif_eq_if {b : Bool} {x y : α} : (bif b then x else y) = if b then x else y := by
+  induction b
+  · simp only [cond_false, Bool.false_eq_true, ↓reduceIte]
+  · simp only [cond_true, ↓reduceIte]
 
 /-!
 ### Kronecker delta

@@ -143,7 +143,7 @@ lemma Ic_nonneg (p : Prob (α × β × γ)) : 0 ≤ p.Ic := by
     rw [exp_eq_exp_cexp fun y ↦ y.2.2]
     refine exp_le_of_forall_le fun z pz ↦ ?_
     simp only [cexp, smul_eq_mul]
-    apply inv_mul_le_one_of_le
+    apply inv_mul_le_one_of_le₀
     · trans p.exp fun x ↦ if x.2.2 = z then (((p.prob x * p.pr fun y ↦ y.2.2 = z) /
         p.pr fun y ↦ y.1 = x.1 ∧ y.2.2 = z) / p.pr fun y ↦ y.2.1 = x.2.1 ∧ y.2.2 = z)⁻¹ else 0
       · refine le_of_eq (congr_arg₂ _ rfl ?_)
@@ -163,14 +163,14 @@ lemma Ic_nonneg (p : Prob (α × β × γ)) : 0 ≤ p.Ic := by
           have pz' : 0 < zp := by simp only [← hzp] at pz ⊢; exact pr_nonneg.lt_of_ne pz.symm
           simp only [mul_comm _ zp⁻¹, ← mul_assoc, smul_eq_mul]
           simp only [mul_assoc, mul_ite, mul_zero, Finset.sum_product,
-            Finset.sum_ite_eq', zm, ↓reduceIte, ← Finset.mul_sum, inv_mul_le_iff pz', smul_eq_mul]
+            Finset.sum_ite_eq', zm, ↓reduceIte, ← Finset.mul_sum, inv_mul_le_iff₀ pz', smul_eq_mul]
           trans ∑ x ∈ sx, ∑ y ∈ sy, ((p.pr fun a ↦ a.2.1 = y ∧ a.2.2 = z) *
             p.pr fun a ↦ a.1 = x ∧ a.2.2 = z)
           · refine Finset.sum_le_sum fun x _ ↦ Finset.sum_le_sum fun y _ ↦ ?_
             rw [← mul_assoc]
             apply mul_le_of_le_one_left
             · exact mul_nonneg pr_nonneg pr_nonneg
-            · exact mul_inv_le_one_of_le (le_refl _) (prob_nonneg _)
+            · exact mul_inv_le_one_of_le₀ (le_refl _) (prob_nonneg _)
           · simp only [← Finset.sum_mul, ← Finset.mul_sum]
             apply mul_le_mul
             · rw [sum_pr_eq_pr_and, ← hzp]
@@ -205,7 +205,7 @@ lemma Ic_nonneg (p : Prob (α × β × γ)) : 0 ≤ p.Ic := by
 
 /-- Information is degenerate conditional information -/
 lemma I_eq_Ic (p : Prob (α × β)) (z : γ) : p.I = ((fun x ↦ (x.1, x.2, z)) <$> p).Ic := by
-  simp only [I, I_inner, Ic, Ic_inner, prob_map, pr_map, exp_map, Function.comp, Prod.mk.injEq,
+  simp only [I, I_inner, Ic, Ic_inner, prob_map, pr_map, exp_map, Function.comp_def, Prod.mk.injEq,
     and_true, pr_true, mul_one, ← Prod.ext_iff, pr_eq_prob]
 
 /-- Information is nonnegative -/
@@ -460,7 +460,8 @@ lemma I_bind_le (p : Prob α) (q : α → Prob (β × γ)) :
   have e0 : p.H + p.exp (fun x ↦ (q x).I) = r.I := by
     simp only [exp_I_eq_Ic]
     simp only [I_eq_H, Ic_eq_H, map_bind, map_pure, r, bind_const, bind_pure, add_sub_cancel]
-  have e1 : p >>= q = (fun s ↦ (s.1.1, s.2.1)) <$> r := by simp [r, map_eq]
+  have e1 : p >>= q = (fun s ↦ (s.1.1, s.2.1)) <$> r := by
+    simp only [r, map_eq, bind_assoc, pure_bind, Prod.mk.eta, bind_pure]
   rw [e0, e1]
   apply map_I_map_le_I
 
@@ -513,7 +514,7 @@ lemma concaveOn_Hp : ConcaveOn ℝ (Icc 0 1) Hp := by
   · exact concaveOn_const _ (convex_Icc _ _)
   · exact Real.concaveOn_negMulLog.subset Icc_subset_Ici_self (convex_Icc 0 1)
   · intro _ _; simp only [inv_nonneg]; apply Real.log_nonneg; norm_num
-  · intro _ ⟨a,b⟩; apply Real.negMulLog_nonneg a b;
+  · intro _ ⟨a,b⟩; apply Real.negMulLog_nonneg a b
   · intro _ _ _ _; simp only [le_refl, implies_true]
 
 /-- Entropy is at most `log #states` -/
@@ -523,12 +524,12 @@ lemma H_le_log (p : Prob α) : p.H ≤ logb 2 p.supp.card := by
   have n0 : (n : ℝ) ≠ 0 := np.ne'
   simp only [H, exp, Finsupp.sum, smul_eq_mul, mul_neg, ← Hp_def]
   trans n * ∑ x ∈ p.prob.support, (n : ℝ)⁻¹ • Hp (p.prob x)
-  · simp only [smul_eq_mul, ← Finset.mul_sum, ← mul_assoc, mul_inv_cancel n0, one_mul, le_refl]
-  · rw [mul_comm, ← le_div_iff np, div_eq_inv_mul, ← Hp_inv]
+  · simp only [smul_eq_mul, ← Finset.mul_sum, ← mul_assoc, mul_inv_cancel₀ n0, one_mul, le_refl]
+  · rw [mul_comm, ← le_div_iff₀ np, div_eq_inv_mul, ← Hp_inv]
     refine le_trans (concaveOn_Hp.le_map_sum ?_ ?_ ?_) ?_
     · intro _ _; positivity
     · simp only [supp] at hn
-      simp only [Finset.sum_const, hn, nsmul_eq_mul, mul_inv_cancel n0]
+      simp only [Finset.sum_const, hn, nsmul_eq_mul, mul_inv_cancel₀ n0]
     · intro _ _; apply prob_mem_Icc
     · have t := p.total
       simp only [Finsupp.sum] at t

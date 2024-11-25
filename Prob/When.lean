@@ -89,7 +89,7 @@ lemma bind_when_pure :
     simp only [not_or, prob_bind] at z ⊢
     refine ne_of_gt (exp_pos (by simp) ?_)
     use s, z.1; exact (Ne.symm z.2).lt_of_le (prob_nonneg _)
-  · simp only [when_prob_eq z, ← mul_assoc, mul_inv_cancel z, one_mul]
+  · simp only [when_prob_eq z, ← mul_assoc, mul_inv_cancel₀ z, one_mul]
 
 /-- The key property of `when` -/
 lemma bind_when (r : α → β → Prob γ) :

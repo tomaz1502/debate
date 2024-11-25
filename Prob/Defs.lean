@@ -68,10 +68,6 @@ lemma mem_iff_pos {f : Prob α} {x : α} : x ∈ f.supp ↔ 0 < f.prob x := by
 @[ext] lemma ext {f g : Prob α} (h : ∀ x, f.prob x = g.prob x) : f = g := by
   induction' f with p _ _; induction' g with q _ _; simp only [mk.injEq]; ext x; apply h
 
-/-- Probs are equal iff their probabilities are -/
-lemma ext_iff {f g : Prob α} : f = g ↔ ∀ x, f.prob x = g.prob x := by
-  constructor; intro e x; simp only [e]; intro h; exact Prob.ext h
-
 /-- Prob is a monad -/
 instance : Monad Prob where
   pure := fun x ↦ {

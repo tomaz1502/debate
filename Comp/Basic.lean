@@ -102,9 +102,11 @@ instance : LawfulMonad (Comp ι s) := LawfulMonad.mk'
       (if j = i then 1 else 0) +
       (o i y).exp (fun x ↦ if x then f0.cost o j else f1.cost o j) := by
   simp only [cost, run, exp_bind, Nat.cast_zero]
-  rw [←exp_const_add]; apply exp_congr; intro x _; induction x;
-  repeat simp only [ite_false, ite_true, exp_bind, exp_pure, Pi.add_apply, Nat.cast_add,
-    Nat.cast_ite, Nat.cast_one, Nat.cast_zero, exp_add, exp_const, add_comm]
+  rw [←exp_const_add]
+  refine exp_congr fun x _ ↦ ?_
+  induction x
+  all_goals simp only [ite_false, ite_true, exp_bind, exp_pure, Pi.add_apply, Nat.cast_add,
+    Nat.cast_ite, Nat.cast_one, Nat.cast_zero, exp_add, exp_const, add_comm, Bool.false_eq_true]
 
 /-- Non-oracle computations are free -/
 @[simp] lemma cost_coe (f : Prob α) (o : I → Oracle ι) (i : I) : (f : Comp ι s α).cost o i = 0 := by
@@ -142,8 +144,9 @@ lemma cost_bind (f : Comp ι s α) (g : α → Comp ι s β) (o : I → Oracle �
     simp only [cost_query', bind, bind', prob, add_assoc, h0, h1]
     apply congr_arg₂ _ rfl
     simp only [run_query, map_bind, exp_bind, ←exp_add]
-    apply exp_congr; intro x _; induction x; repeat {
-      simp only [ite_true, ite_false, add_right_inj, exp_map, Function.comp, exp_bind]
+    apply exp_congr; intro x _; induction x; all_goals {
+      simp only [ite_true, ite_false, add_right_inj, exp_map, Function.comp_def, exp_bind,
+        Bool.false_eq_true]
       apply exp_congr; intro _; simp only [ne_eq, exp_pure, implies_true]
     }
 
@@ -201,7 +204,8 @@ lemma cost_eq_zero {f : Comp ι s α} {i : I} (m : i ∉ s) (o : I → Oracle ι
     refine congr_arg₂ _ rfl ?_
     funext b
     induction b
-    repeat simp only [ite_false, ite_true, bind_assoc, pure_bind, Pi.add_def, add_comm, add_assoc]
+    all_goals simp only [ite_false, ite_true, bind_assoc, pure_bind, Pi.add_def, add_comm,
+      add_assoc, Bool.false_eq_true]
 
 @[simp] lemma run_allow (f : Comp ι s α) (st : s ⊆ t) (o : I → Oracle ι) :
     (f.allow st).run o = f.run o := by
@@ -225,12 +229,12 @@ lemma cost_eq_zero {f : Comp ι s α} {i : I} (m : i ∉ s) (o : I → Oracle ι
     (query' i m y f0 f1).prob o = (do if ←o i y then f0.prob o else f1.prob o) := by
   simp only [prob, Prob.map_eq, run, bind_assoc]
   apply congr_arg₂ _ rfl; funext y; induction y
-  repeat simp only [ite_false, ite_true, bind_assoc, pure_bind]
+  all_goals simp only [ite_false, ite_true, bind_assoc, pure_bind, Bool.false_eq_true]
 
 @[simp] lemma prob_query (i : I) (y : ι) (o : I → Oracle ι) :
     (query i y).prob o = o i y := by
   have e : ∀ y : Bool, (if y = true then pure true else pure false) = (pure y : Prob Bool) := by
-    intro y; induction y; simp only [ite_false]; simp only [ite_true]
+    intro y; induction y; simp only [ite_false, Bool.false_eq_true]; simp only [ite_true]
   simp only [query, prob_query', prob_pure, e, bind_pure]
 
 @[simp] lemma prob_bind (f : Comp ι s α) (g : α → Comp ι s β) (o : I → Oracle ι) :
@@ -240,7 +244,7 @@ lemma cost_eq_zero {f : Comp ι s α} {i : I} (m : i ∉ s) (o : I → Oracle ι
   · simp only [sample'_bind, prob_sample', h, bind_assoc]
   · simp only [query'_bind, prob_query', h0, h1, bind_assoc]
     apply congr_arg₂ _ rfl; funext y; induction y
-    repeat simp only [ite_false, ite_true]
+    all_goals simp only [ite_false, ite_true, Bool.false_eq_true]
 
 @[simp] lemma prob_map (f : α → β) (g : Comp ι s α) (o : I → Oracle ι) :
     (f <$> g).prob o = f <$> g.prob o := by
@@ -320,12 +324,12 @@ end Comp
 /-- Show `i ∉ s` via `simp` -/
 macro "not_mem" : tactic =>
   `(tactic| simp only [Set.mem_singleton_iff, Set.mem_insert_iff, or_self, not_false_eq_true,
-    not_false])
+    not_false, reduceCtorEq])
 
 /-- Show `s ⊆ t` via `simp` -/
 macro "subset" : tactic =>
   `(tactic| simp only [Set.mem_singleton_iff, Set.singleton_subset_iff, Set.mem_insert_iff,
-    or_false, false_or])
+    or_false, false_or, true_or, or_true])
 
 /-- Show a cost is zero via `i : I` not being in `s` -/
 macro "zero_cost" : tactic =>

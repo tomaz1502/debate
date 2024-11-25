@@ -43,7 +43,7 @@ lemma cond_mono (pq : ∀ x, f.prob x ≠ 0 → r x → p x → q x) : f.cond p 
 -- cond is between 0 and 1
 lemma cond_nonneg : 0 ≤ f.cond p q := div_nonneg pr_nonneg pr_nonneg
 lemma cond_le_one : f.cond p q ≤ 1 := by
-  refine div_le_one_of_le (pr_mono ?_) pr_nonneg; intro x _; exact And.right
+  refine div_le_one_of_le₀ (pr_mono ?_) pr_nonneg; intro x _; exact And.right
 lemma cond_mem_Icc : f.cond p q ∈ Icc 0 1 := ⟨cond_nonneg, cond_le_one⟩
 
 /-- cexp is nonneg if the inside is -/
@@ -94,10 +94,10 @@ lemma cond_bind_le_of_forall_le {f : Prob α} {g : α → Prob β} {p q : β →
     (b0 : 0 ≤ b) (le : ∀ x, f.prob x ≠ 0 → (g x).cond p q ≤ b) : (f >>= g).cond p q ≤ b := by
   simp only [cond]
   by_cases fg0 : 0 < (f >>= g).pr q
-  · simp only [div_le_iff fg0]; simp only [pr, ←exp_const_mul, exp_bind]
+  · simp only [div_le_iff₀ fg0]; simp only [pr, ←exp_const_mul, exp_bind]
     apply exp_mono; intro x px; specialize le x px; simp only [exp_const_mul]
     by_cases g0 : 0 < (g x).pr q
-    · simp only [cond, div_le_iff g0] at le; exact le
+    · simp only [cond, div_le_iff₀ g0] at le; exact le
     · replace g0 := le_antisymm (not_lt.mp g0) pr_nonneg; simp only [pr] at g0
       simp only [g0, mul_zero]; nth_rewrite 2 [←g0]
       apply exp_mono; intro y _; simp only [ite_le_ite_iff]; exact And.right
@@ -116,7 +116,7 @@ lemma exp_eq_cexp_add_cexp (q : α → Prop) :
   · simp only [q1, cexp, inv_one, one_smul, sub_self, zero_smul, add_zero]
     simp only [pr_eq_one] at q1; apply exp_congr; intro x m; simp only [q1 x m, if_true, and_true]
   replace q1 : 1 - f.pr q ≠ 0 := by rw [sub_ne_zero]; exact Ne.symm q1
-  simp only [cexp, pr_neg, smul_smul, mul_inv_cancel q0, mul_inv_cancel q1, one_smul]
+  simp only [cexp, pr_neg, smul_smul, mul_inv_cancel₀ q0, mul_inv_cancel₀ q1, one_smul]
   simp only [pr, ←exp_add]; apply exp_congr; intro x _
   by_cases qx : q x; repeat { simp only [qx, if_true, if_false]; norm_num }
 
@@ -131,7 +131,7 @@ lemma exp_eq_exp_cexp (g : α → β) :
     intro y; by_cases gxy : g x = g y
     · simp only [gxy, ↓reduceIte, one_smul, eq_comm (a := g y)]
     · simp only [gxy, ↓reduceIte, smul_zero, zero_smul]
-  rw [exp_congr fun _ _ ↦ e _, exp_const_smul, exp_smul_const, ← pr, smul_smul, inv_mul_cancel,
+  rw [exp_congr fun _ _ ↦ e _, exp_const_smul, exp_smul_const, ← pr, smul_smul, inv_mul_cancel₀,
     one_smul]
   rw [pr_ne_zero]
   use x
@@ -230,7 +230,7 @@ lemma cexp_if :
     refine exp_eq_zero fun x m ↦ ?_
     simp only [pr_eq_zero] at z
     simp only [z x m, if_false, pr_eq_zero]
-  · simp only [smul_smul, div_eq_inv_mul, mul_assoc, mul_inv_cancel z, mul_one]
+  · simp only [smul_smul, div_eq_inv_mul, mul_assoc, mul_inv_cancel₀ z, mul_one]
     refine congr_arg₂ _ rfl (exp_congr ?_); intro x _; split_ifs; repeat rfl
 
 /-- cexp can be decomposed as positive and negative cexps, even if there are zeros -/
@@ -243,7 +243,7 @@ lemma cexp_eq_cexp_add_cexp (r : α → Prop) :
     rw [cexp, pr_eq_zero.mpr _, inv_zero, zero_smul]
     intro x m; simp only [q0 x m, false_and, not_false_eq_true]
   have e : ∀ s, 1 - (f.pr q)⁻¹ • s = (f.pr q)⁻¹ • (f.pr q - s) := by
-    intro s; simp only [smul_eq_mul, mul_sub, inv_mul_cancel q0]
+    intro s; simp only [smul_eq_mul, mul_sub, inv_mul_cancel₀ q0]
   rw [cexp, exp_eq_cexp_add_cexp r]
   simp only [cond, div_eq_inv_mul, ← smul_eq_mul, e, ← smul_add, smul_assoc]
   refine congr_arg₂ _ rfl (congr_arg₂ _ ?_ ?_)
@@ -317,7 +317,7 @@ lemma cond_bind_le_first {f : Prob α} {g : α → Prob β} (p q : β → Prop) 
       refine le_antisymm ?_ pr_nonneg; rw [←fj]
       apply pr_enrich_le_pr; intro x y _ _ ⟨_,jx⟩; exact jx
     simp only [fj, qj, div_zero, le_refl]
-  refine div_le_div pr_nonneg ?_ ((Ne.symm fj).lt_of_le pr_nonneg) ?_
+  refine div_le_div₀ pr_nonneg ?_ ((Ne.symm fj).lt_of_le pr_nonneg) ?_
   · apply pr_enrich_le_pr; intro x y fx gy ⟨py,qy,jx⟩; exact ⟨pi x y fx gy jx py qy, jx⟩
   · apply pr_le_pr_enrich; intro x y fx gy jx; exact ⟨jq x y fx gy jx,jx⟩
 
@@ -328,25 +328,28 @@ lemma cond_bind_le_second {f : Prob α} {g : α → Prob β} (p q : β → Prop)
   simp only [cond]
   by_cases d0 : (f >>= fun x ↦ Prod.mk x <$> g x).pr (fun y ↦ q y.2 ∧ i y.1) = 0
   · simp only [d0, div_zero, b0]
-  simp only [div_le_iff ((Ne.symm d0).lt_of_le pr_nonneg)]
+  simp only [div_le_iff₀ ((Ne.symm d0).lt_of_le pr_nonneg)]
   simp only [pr, ←exp_const_mul, exp_bind]; apply exp_mono; intro x m
   simp only [exp_map, Function.comp]
   by_cases ix : i x
-  · simp only [ix, and_true]; specialize gb x m ix; simp only [cond] at gb
+  · simp only [Function.comp_def, ix, and_true, mul_ite, mul_one, mul_zero]
+    specialize gb x m ix
+    simp only [cond] at gb
     by_cases gq : (g x).pr q = 0
     · rw [exp_eq_zero]
       · apply exp_nonneg; intro y _; by_cases qy : q y
         repeat simp only [qy, if_true, if_false, mul_one, mul_zero, b0, le_refl]
       · intro y n; rw [pr_eq_zero] at gq; simp only [gq y n, and_false, if_false]
-    · simp only [div_le_iff ((Ne.symm gq).lt_of_le pr_nonneg)] at gb;
-      simp only [pr, ←exp_const_mul] at gb; convert gb
-  · simp only [ix, and_false, ite_false, mul_zero, le_refl]
+    · simp only [div_le_iff₀ ((Ne.symm gq).lt_of_le pr_nonneg)] at gb
+      simp only [pr, ← exp_const_mul, mul_ite, mul_one, mul_zero] at gb
+      convert gb
+  · simp only [ix, and_false, ite_false, mul_zero, le_refl, Function.comp_def]
 
 /-- Bound a cexp uniformly -/
 lemma cexp_le_of_forall {b : ℝ} (h : ∀ x, f.prob x ≠ 0 → q x → v x ≤ b) (b0 : 0 ≤ b) :
     f.cexp v q ≤ b := by
   simp only [cexp, smul_eq_mul, ← div_eq_inv_mul]
-  apply div_le_of_nonneg_of_le_mul pr_nonneg b0
+  apply div_le_of_le_mul₀ pr_nonneg b0
   simp only [pr, ←exp_const_mul]
   refine exp_mono fun x m ↦ ?_
   by_cases qx : q x

@@ -33,7 +33,7 @@ def uniform (s : Finset α) (n : s.Nonempty) : Prob α where
   total := by
     simp only [Finsupp.sum, uniform_finsupp, Finsupp.coe_mk, Finset.sum_ite_mem, Finset.inter_self,
       Finset.sum_const, nsmul_eq_mul]
-    apply mul_inv_cancel
+    apply mul_inv_cancel₀
     simp [n.ne_empty]
 
 /-- The support is the original set -/
