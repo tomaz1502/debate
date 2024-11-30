@@ -65,7 +65,7 @@ lemma alice_steps_cost (o : DOracle) (bob : Bob) (vera : Vera) (n : ℕ):
       · simp only [ite_false, Comp.cost_bind, Comp.cost_allow_all, Comp.prob_allow_all,
           Comp.cost_pure, exp_const, add_zero, Bool.false_eq_true]
         zero_cost
-      · simp only [ite_true, Comp.cost_sample, Comp.cost_pure, exp_const, le_refl]
+      · simp only [↓reduceIte, bind_pure_comp, Comp.cost_map, Comp.cost_coe, le_refl]
 
 /-- Bob makes few queries, regardless of Alice and Vera -/
 lemma bob_steps_cost (o : DOracle) (alice : Alice) (vera : Vera) (n : ℕ):
@@ -87,7 +87,7 @@ lemma bob_steps_cost (o : DOracle) (alice : Alice) (vera : Vera) (n : ℕ):
       · simp only [ite_false, Comp.cost_bind, Comp.cost_allow_all, Comp.prob_allow_all,
           Comp.cost_pure, exp_const, add_zero, Bool.false_eq_true]
         zero_cost
-      · simp only [ite_true, Comp.cost_sample, Comp.cost_pure, exp_const]
+      · simp only [↓reduceIte, bind_pure_comp, Comp.cost_map, Comp.cost_coe]
 
 /-- Alice makes few queries, regardless of Bob and Vera -/
 theorem alice_debate_cost (o : DOracle) (bob : Bob) (vera : Vera) (t : ℕ):
@@ -193,8 +193,8 @@ lemma post_stepsV (alice : Alice) (bob : Bob) (vera : Vera) :
       induction b
       · simp only [ite_false, Comp.allow_all_pure, pure_bind, postV, Bool.false_eq_true]
       · simp only [ite_true]
-        rw [Comp.allow_all, Comp.allow, bind_assoc]
-        simp only [Comp.allow, pure_bind, Comp.sample'_bind, postV]
+        rw [Comp.allow_all, Comp.allow_bind, bind_assoc]
+        simp only [Comp.allow_sample, Comp.allow_pure, pure_bind, postV, bind_pure_comp]
 
 /-- Vera makes few queries, regardless of Alice and Bob -/
 theorem vera_debate_cost (o : DOracle) (alice : Alice) (bob : Bob) (t : ℕ):

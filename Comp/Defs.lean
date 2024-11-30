@@ -1,5 +1,6 @@
 import Comp.Oracle
 import Prob.Defs
+import Prob.Fin
 
 /-!
 ## Oracle-relative probabilitistic computations
@@ -16,6 +17,7 @@ open scoped Real
 open Set
 noncomputable section
 
+variable {n : ℕ}
 variable {ι I : Type}
 variable {s t : Set I}
 variable {α β γ : Type}
@@ -24,11 +26,11 @@ variable {α β γ : Type}
     Importantly, the computation does not know the oracle, so we can model query complexity.
     The `Comp` constructors are not very user friendly due to kernel restrictions on inductive,
     but we replace them with clean ones below. -/
-inductive Comp (ι : Type) {I : Type} (s : Set I) (α : Type) : Type 1 where
+inductive Comp (ι : Type) {I : Type} (s : Set I) (α : Type) : Type where
   /-- Return a result with no computation -/
   | pure' : α → Comp ι s α
   /-- Sample a value with some probability distribution, then continue -/
-  | sample' : {β : Type} → Prob β → (β → Comp ι s α) → Comp ι s α
+  | sample' : {n : ℕ} → Prob (Fin n) → (Fin n → Comp ι s α) → Comp ι s α
   /-- Query an oracle `o ∈ s`, and branch on the result -/
   | query' : (o : I) → o ∈ s → ι → Comp ι s α → Comp ι s α → Comp ι s α
 
@@ -45,9 +47,13 @@ instance : Monad (Comp ι s) where
   pure := Comp.pure'
   bind := Comp.bind'
 
+/-- `sample'` with a general `α` instead of `Fin n` -/
+def sample (p : Prob α) (f : α → Comp ι s β) : Comp ι s β :=
+  .sample' p.fin (f ∘ p.fromfin)
+
 /-- `Prob`s are `Comp ι s` for any `s` -/
 instance : Coe (Prob α) (Comp ι s α) where
-  coe f := .sample' f pure
+  coe p := .sample p pure
 
 /-- The simplest case of `Comp.query'` -/
 def query (i : I) (y : ι) : Comp ι {i} Bool :=
@@ -83,7 +89,7 @@ def cost' (f : Comp ι s α) (o : Oracle ι) : I → ℝ :=
 /-- Allow more oracles in a computation -/
 def allow (f : Comp ι s α) (st : s ⊆ t) : Comp ι t α := match f with
   | .pure' x => pure x
-  | .sample' f g => f >>= fun x ↦ (g x).allow st
+  | .sample' f g => sample' f fun x ↦ (g x).allow st
   | .query' i m y f0 f1 => .query' i (st m) y (f0.allow st) (f1.allow st)
 
 /-- Allow all oracles in a computation -/

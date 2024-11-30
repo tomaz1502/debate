@@ -157,7 +157,7 @@ lemma debate_eq_transposed (o : DOracle) (alice : Alice) (bob : Bob) (vera : Ver
         simp only [bind_assoc, bind_comm _ ((bob _ _ _).prob _)]; apply congr_arg₂ _ rfl; funext s
         match s with
         | true =>
-          simp only [if_true, Comp.prob_bind, Comp.prob_pure, Comp.prob_sample', bind_assoc]
+          simp only [if_true, Comp.prob_bind, Comp.prob_pure, Comp.prob_sample, bind_assoc]
           apply congr_arg₂ _ rfl; funext x; simp only [bind_const, pure_bind]
         | false =>
           simp only [Bool.false_eq_true, ↓reduceIte, Comp.prob_bind, Comp.prob_allow_all,
