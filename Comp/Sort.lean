@@ -372,7 +372,7 @@ lemma Nat.le_ceil_log2 (n : ℕ) : n ≤ 2 ^ n.ceil_log2 := by
 
 /-- `Nat.log2` is monotonic -/
 lemma Nat.log2_le_log2 {a b : ℕ} (ab : a ≤ b) : a.log2 ≤ b.log2 := by
-  rw [Nat.log2_eq_log_two (n := a), Nat.log2_eq_log_two (n := b)]
+  simp only [Nat.log2_eq_log_two]
   exact Nat.log_monotone (b := 2) ab
 
 /-- `Nat.log2` is monotonic -/
