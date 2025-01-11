@@ -1,9 +1,5 @@
-import Comp.Oracle
 import Comp.Defs
 import Mathlib.Algebra.Order.Ring.Nat
-
-
-
 
 /-!
 ## Basic properties of `Comp`
@@ -166,29 +162,6 @@ lemma cost_bind (f : Comp ι s α) (g : α → Comp ι s β) (o : I → Oracle �
 
 @[simp] lemma allow_all_pure (x : α) : (pure x : Comp ι s α).allow_all = pure x := by
   simp only [allow_all, allow_pure]
-
-/- @[simp] lemma allow_bind (f : Comp ι s α) (g : α → Comp ι s β) (st : s ⊆ t) : -/
-/-     (f >>= g).allow st = f.allow st >>= fun x ↦ (g x).allow st := by -/
-/-   have e : ∀ v, bind' v g = v >>= g := fun _ ↦ rfl -/
-/-   induction' f with x β u v h j m y f0 f1 h0 h1 -/
-/-   · simp only [pure'_bind, allow, pure_bind] -/
-/-   · simp only [allow, e, h, sample'_bind, pure_bind] -/
-/-   · simp only [allow, e, h0, h1, query'_bind] -/
-
-/- @[simp] lemma allow_all_bind (f : Comp ι s α) (g : α → Comp ι s β) : -/
-/-     (f >>= g).allow_all = f.allow_all >>= fun x ↦ (g x).allow_all := -/
-/-   allow_bind f g _ -/
-
-/- @[simp] lemma allow_allow (f : Comp ι s α) (st : s ⊆ t) (tu : t ⊆ u) : -/
-/-     (f.allow st).allow tu = f.allow (st.trans tu) := by -/
-/-   induction' f with x β u v h j m y f0 f1 h0 h1 -/
-/-   · simp only [allow] -/
-/-   · simp only [allow, bind', h, sample'_bind, pure_bind] -/
-/-   · simp only [allow, h0, h1] -/
-
-/- @[simp] lemma allow_all_allow (f : Comp ι s α) (st : s ⊆ t) : -/
-/-     (f.allow st).allow_all = f.allow_all := by -/
-/-   simp only [allow_all, allow_allow] -/
 
 @[simp] lemma value_map (f : α → β) (g : Comp ι s α) (o : I → Oracle ι) :
     (f <$> g).value o = f  (g.value o) := by

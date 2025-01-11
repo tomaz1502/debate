@@ -1,7 +1,5 @@
-import Comp.Oracle
 import Mathlib.Algebra.Group.Pi.Basic
 import Mathlib.Data.Set.Basic
-
 
 /-!
 ## Oracle-relative probabilitistic computations
@@ -19,6 +17,8 @@ noncomputable section
 variable {ι I : Type}
 variable {s t : Set I}
 variable {α β γ : Type}
+
+def Oracle (α : Type) := α → Bool
 
 inductive Comp (ι : Type) {I : Type} (s : Set I) (α : Type) : Type where
   | pure' : α → Comp ι s α
