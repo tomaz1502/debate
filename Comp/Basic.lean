@@ -132,7 +132,7 @@ lemma cost_bind (f : Comp ι s α) (g : α → Comp ι s β) (o : I → Oracle �
     (f >>= g).value o = (g (f.value o)).value o := by
   induction' f with a b c d e f h0 h1
   · rfl
-  · simp only [value_query', query'_bind]; simp only [h0, h1];
+  · simp only [value_query', query'_bind, h0, h1];
     cases o b d
     · rfl
     · rfl

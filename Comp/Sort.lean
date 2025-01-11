@@ -1,4 +1,6 @@
 import Comp.Basic
+import Mathlib.Data.Nat.Cast.Order.Ring
+import Mathlib.Algebra.Order.Ring.Nat
 import Mathlib.Algebra.Order.Star.Basic
 import Mathlib.Data.Fintype.Perm
 import Mathlib.Data.Nat.Lattice
@@ -229,29 +231,131 @@ lemma length_merge (o : SOracle α) : (s t x : List α) →
 /-- `mergeSort` preserves `length` -/
 lemma length_mergeSort (o : SOracle α) : (s x : List α) →
     (px : ((mergeSort s).value (fun _ ↦ o)) = x) →
-    x.length = s.length
-  | [] => by simp [mergeSort]
-  | [a] => by simp [mergeSort]
-  | a :: b :: l => by
-    simp only [mergeSort, List.mergeSort, Comp.value_bind]
-    intros x heq
-    rw [<-heq]
-    simp
-    admit
-    /- intro x heq -/
-    /- rw [<- heq] -/
+    x.length = s.length := by
+  intros s x p
+  rw [mergeSort_eq o s] at p
+  rw [<- p]
+  rw [List.length_mergeSort]
 
-    /- set s := a :: b :: l -/
-    /- have hh : s = a :: b :: l := rfl -/
-    /- rw [<- hh] -/
+/-- `log2 n`, rounding up -/
+def Nat.ceil_log2 (n : ℕ) : ℕ := Nat.log2 (2 * n - 1)
 
-    /- simp only [length_merge o ((mergeSort s.splitInTwo.1).value (fun _ => o)) ((mergeSort s.splitInTwo.2).value (fun _ => o))] -/
+/-- `Nat.ceil_log2` is an upper bound -/
+lemma Nat.le_ceil_log2 (n : ℕ) : n ≤ 2 ^ n.ceil_log2 := by
+  simp only [Nat.ceil_log2]
+  by_cases n0 : n = 0
+  · simp [n0]
+  · have h := Nat.lt_log2_self (n := 2 * n - 1)
+    omega
 
-    /- simp only [Comp.value', Comp.value_bind, length_mergeSort o _ _ _, length_mergeSort o _ _ _, -/
-    /-   length_merge o _ _ _ _, List.length_cons, List.splitInTwo_fst, List.length_take, -/
-    /-   List.splitInTwo_snd, List.length_drop] -/
+/-- `Nat.ceil_log2 n` is zero for `n ≤ 1` -/
+@[simp] lemma Nat.ceil_log2_eq_zero_iff (n : ℕ) : n.ceil_log2 = 0 ↔ n ≤ 1 := by
+  by_cases n0 : n = 0
+  · simp only [ceil_log2, n0, mul_zero, _root_.zero_le, tsub_eq_zero_of_le, log2_zero]
+  by_cases n1 : n = 1
+  · simp only [ceil_log2, n1, mul_one, reduceSub, le_refl, iff_true]
+    unfold log2
+    decide
+  have nle : ¬n ≤ 1 := by omega
+  simp only [nle, iff_false, ne_eq]
+  have h := Nat.le_ceil_log2 n
+  contrapose h
+  simp only [ne_eq, not_not] at h
+  simp only [h, pow_zero, not_le]
+  omega
 
-    /- admit -/
-    /- rw [min_eq_left] -/
-    /- all_goals omega -/
-  termination_by s => s.length
+/-- `Nat.log2` is monotonic -/
+lemma Nat.log2_le_log2 {a b : ℕ} (ab : a ≤ b) : a.log2 ≤ b.log2 := by
+  induction' b using Nat.strong_induction_on with b h generalizing a
+  rw [Nat.log2]
+  nth_rw 2 [Nat.log2]
+  by_cases a2 : a < 2
+  · by_cases a0 : a = 0
+    · simp [a0]
+    · have a1 : a = 1 := by omega
+      simp [a1]
+  · have b2 : 2 ≤ b := by omega
+    simp only [not_lt.mp a2, ↓reduceIte, b2, add_le_add_iff_right]
+    apply h
+    all_goals omega
+
+/-- `Nat.log2` is monotonic -/
+lemma Nat.ceil_log2_le_ceil_log2 {a b : ℕ} (ab : a ≤ b) : a.ceil_log2 ≤ b.ceil_log2 := by
+  apply Nat.log2_le_log2; omega
+
+ /-- `n/2` has one smaller `ceil_log2` -/
+lemma Nat.ceil_log2_div2 (n : ℕ) (n2 : 2 ≤ n) : (n / 2).ceil_log2 ≤ n.ceil_log2 - 1 := by
+  simp only [ceil_log2]
+  have e : (2 * n - 1).log2 = ((2 * n - 1) / 2).log2 + 1 := by
+    rw [Nat.log2]; simp only [(by omega : 2 * n - 1 ≥ 2), if_true]
+  rw [e, Nat.add_sub_cancel]
+  apply Nat.log2_le_log2
+  omega
+
+/-- The cost of `mergeSort`. The factor of 3 is unnecessarily, but makes the proof easier. -/
+def mergeSort_bound (n : ℕ) : ℕ := 3 * n * n.ceil_log2
+
+/-- The inductive step inequality in `cost_mergeSort_le` -/
+lemma mul_log_le (n : ℕ) (n2 : 2 ≤ n) :
+    mergeSort_bound ((n+1)/2) + (mergeSort_bound (n/2) + n) ≤ mergeSort_bound n := by
+  simp only [mergeSort_bound]
+  have h0 := Nat.ceil_log2_div2 n n2
+  generalize ha : n.ceil_log2 = a at h0
+  have h1 : ((n + 1) / 2).ceil_log2 ≤ a := by rw [← ha]; apply Nat.ceil_log2_le_ceil_log2; omega
+  have a1 : 1 ≤ a := by
+    contrapose n2
+    simp only [not_le, Nat.lt_one_iff] at n2
+    simp only [n2, Nat.ceil_log2_eq_zero_iff] at ha
+    omega
+  trans 3 * ((n + 1) / 2) * a + (3 * (n / 2) * (a - 1) + n)
+  · gcongr
+  generalize hu : n / 2 = u
+  generalize hv : (n + 1) / 2 = v
+  have uv : u + v = n := by omega
+  simp only [Nat.mul_sub_left_distrib, mul_one]
+  trans 3 * v * a + 3 * u * a + (n - 3 * u)
+  · simp only [add_assoc, add_le_add_iff_left]
+    have un : n ≤ 3 * u := by omega
+    have uu : 3 * u ≤ 3 * u * a := Nat.le_mul_of_pos_right _ a1
+    simp only [Nat.sub_eq_zero_of_le un, add_zero]
+    omega
+  · simp only [← Nat.add_mul, ← Nat.mul_add, add_comm _ u, uv]
+    omega
+
+/-- `mergeSort` is `O(n log n)` -/
+lemma cost_mergeSort_le (o : SOracle α) (s : List α) :
+    (mergeSort s).cost (fun _ ↦ o) () ≤ mergeSort_bound s.length := by
+  generalize hn : s.length = n
+  induction' n using Nat.strong_induction_on with n h generalizing s
+  induction' s with a s d
+  · simp only [List.length_nil] at hn
+    simp [mergeSort,  ← hn]
+  · clear d
+    induction' s with b s d
+    · simp only [List.length_singleton] at hn
+      simp [mergeSort,  ← hn]
+    · simp only [List.length_cons, Nat.succ_eq_add_one] at hn
+      simp only [Comp.cost', mergeSort, Comp.cost_bind, List.splitInTwo]
+      let t := ((a :: b :: s).length + 1) / 2
+      let l1 := (List.splitAt t (a :: b :: s)).1
+      let l2 := (List.splitAt t (a :: b :: s)).2
+      have this1 : l1.length < n := by
+        simp only [t, l1, List.length_cons, List.splitAt_eq, List.length_take, ← hn, inf_lt_right, not_le]
+        omega
+      have this2 : l2.length < n := by
+        simp only [t, l2, List.length_cons, List.splitAt_eq, List.length_drop]
+        omega
+      have this3 : Comp.cost (merge (Comp.value (mergeSort l1) fun x ↦ o) (Comp.value (mergeSort l2) fun x ↦ o)) (fun x ↦ o) () ≤ n := by
+        refine le_trans (cost_merge_le _ _ _) ?_
+        rw [length_mergeSort _ l1 _ rfl]
+        rw [length_mergeSort _ l2 _ rfl]
+        simp only [l1, l2, t, List.length_cons, List.splitAt_eq, List.length_take, Nat.cast_min, List.length_drop, ← Nat.cast_min, ← Nat.cast_add, Nat.cast_le]
+        omega
+      have h1 := h _ this1 _ rfl
+      have h2 := h _ this2 _ rfl
+      refine le_trans (add_le_add h1 (add_le_add h2 this3)) ?_
+      convert mul_log_le n (by omega)
+      · simp only [t, l1, List.length_cons, List.splitAt_eq, List.length_take]
+        omega
+      · simp only [t, l2, List.length_cons, List.splitAt_eq, List.length_drop]
+        omega
