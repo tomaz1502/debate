@@ -1,5 +1,10 @@
-import Comp.Defs
+/-
+Copyright (c) 2025 Tomaz Mascarenhas. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Geoffrey Irving, Tomaz Mascarenhas
+-/
 import Mathlib.Algebra.Order.Ring.Nat
+import Comp.Defs
 
 /-!
 ## Basic properties of `Comp`

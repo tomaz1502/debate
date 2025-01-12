@@ -1,10 +1,14 @@
-import Comp.Basic
-import Mathlib.Data.Nat.Cast.Order.Ring
-import Mathlib.Algebra.Order.Ring.Nat
+/-
+Copyright (c) 2025 Tomaz Mascarenhas. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Geoffrey Irving, Tomaz Mascarenhas
+-/
 import Mathlib.Algebra.Order.Star.Basic
 import Mathlib.Data.Fintype.Perm
+import Mathlib.Data.Nat.Cast.Order.Ring
 import Mathlib.Data.Nat.Lattice
 import Mathlib.Order.Interval.Finset.Fin
+import Comp.Basic
 
 /-!
 # Sorting has `Θ(n log n)` query complexity
@@ -17,7 +21,6 @@ We prove that
 -/
 
 open Classical
--- open Real (logb)
 open Set
 noncomputable section
 

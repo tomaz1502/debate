@@ -1,16 +1,30 @@
+/-
+Copyright (c) 2025 Tomaz Mascarenhas. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Geoffrey Irving, Tomaz Mascarenhas
+-/
 import Mathlib.Algebra.Group.Pi.Basic
 import Mathlib.Data.Set.Basic
 
 /-!
-## Oracle-relative probabilitistic computations
+# Definition of a model of computation based on oracles.
 
-`Prob α` represents the result of a probabilistic computation, but has no information about
-how long the computation took.  `Comp ι s α` is a computation that is allowed to consult any
-oracle `o ∈ s`, and produces a distribution over results and calls to each oracle.
+This module defines and provide a Monad instance for a model of computation to be used for
+reasoning on the upper bound of query complexity of algorithms.
+
+Note that this is the deterministic version. In the future, the stochastic version will
+be ported. With it, one will be able to prove lower bounds on the query complexity
+of algorithms. The design of the types here is based on the original stochastic version.
+Source:
+  https://github.com/girving/debate/blob/862fdb1cf55df0d541b802bdb1e672d724df6398/Comp/Oracle.lean
+
+## Main Definitions
+
+- Comp (ι : Type) {I : Type} (s : Set I) (α : Type) : Type
+- Comp.run : Comp ι s α → (I → Oracle ι) → α × (I → ℕ)
 -/
 
 open Classical
-open Option (some none)
 open Set
 noncomputable section
 
@@ -18,8 +32,14 @@ variable {ι I : Type}
 variable {s t : Set I}
 variable {α β γ : Type}
 
+-- A deterministic oracle is a map from `α` to `Bool`
 def Oracle (α : Type) := α → Bool
 
+/- A deterministic computation that can make oracle queries.
+   A computation is either a value or an oracle drawn from a given set,
+   a value to be queried by the oracle and two other computations, to
+   be run depending on the answer of the oracle.
+-/
 inductive Comp (ι : Type) {I : Type} (s : Set I) (α : Type) : Type where
   | pure' : α → Comp ι s α
   | query' : (o : I) → o ∈ s → ι → Comp ι s α → Comp ι s α → Comp ι s α
@@ -56,9 +76,11 @@ def value (f : Comp ι s α) (o : I → Oracle ι) : α :=
 @[simp] def value' (f : Comp ι s α) (o : Oracle ι) : α :=
   f.value fun _ ↦ o
 
+/-- The cost of a `Comp ι s` for a specific oracle -/
 def cost (f : Comp ι s α) (o : I → Oracle ι) (i : I) : ℕ :=
   Prod.snd (f.run o) i
 
+/-- The cost of a `Comp ι s`, when run with a single oracle -/
 def cost' (f : Comp ι s α) (o : Oracle ι) : I → ℕ :=
   f.cost fun _ ↦ o
 
