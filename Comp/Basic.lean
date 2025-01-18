@@ -106,16 +106,12 @@ lemma run_query {i : I} (m : i ∈ s) (y : ι) (f0 f1 : Comp ι s α)
     (o : I → Oracle ι) :
     (query' i m y f0 f1).value o = (if o i y then f0.value o else f1.value o) := by
   simp only [value, run_query]
-  cases o i y
-  · rfl
-  · rfl
+  cases o i y <;> rfl
 
 @[simp] lemma value_query (i : I) (y : ι) (o : I → Oracle ι) :
     (query i y).value o = o i y := by
   simp only [query, value_query'];
-  cases o i y
-  · rfl
-  · rfl
+  cases o i y <;> rfl
 
 /-- The cost of `f >>= g` is roughly `f.cost + g.cost` -/
 lemma cost_bind (f : Comp ι s α) (g : α → Comp ι s β) (o : I → Oracle ι) (i : I) :
@@ -125,18 +121,14 @@ lemma cost_bind (f : Comp ι s α) (g : α → Comp ι s β) (o : I → Oracle �
   · simp only [bind, bind'] at h0 h1
     simp only [cost_query', bind, bind', add_assoc, h0, h1]
     apply congr_arg₂ _ rfl
-    split
-    · simp only [value_query']; simp; aesop
-    · simp only [value_query']; simp; aesop
+    split <;> (simp only [value_query', add_right_inj]; aesop)
 
 @[simp] lemma value_bind (f : Comp ι s α) (g : α → Comp ι s β) (o : I → Oracle ι) :
     (f >>= g).value o = (g (f.value o)).value o := by
   induction' f with a b c d e f h0 h1
   · rfl
-  · simp only [value_query', query'_bind, h0, h1];
-    cases o b d
-    · rfl
-    · rfl
+  · simp only [value_query', query'_bind, h0, h1]
+    cases o b d <;> rfl
 
 /-!
 ## `allow` and `allow_all` don't change `.prob` or `.cost`
@@ -170,7 +162,7 @@ lemma cost_bind (f : Comp ι s α) (g : α → Comp ι s β) (o : I → Oracle �
 
 @[simp] lemma value_map (f : α → β) (g : Comp ι s α) (o : I → Oracle ι) :
     (f <$> g).value o = f  (g.value o) := by
-  simp only [Comp.map_eq, value_bind, value_pure]
+  simp only [map_eq, value_bind, value_pure]
 
 lemma cost_map (f : α → β) (g : Comp ι s α) (o : I → Oracle ι) (i : I) :
     (f <$> g).cost o i = g.cost o i := by
